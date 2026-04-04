@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/schema",
+  "type": "object",
+  "properties": {
+    "client": {
+      "type": "string",
+      "description": "The client config name to use (without .json extension, e.g. 'client-dev').",
+      "default": "client-dev"
+    }
+  }
+}

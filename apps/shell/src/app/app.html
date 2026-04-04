@@ -1,0 +1,26 @@
+<div class="app-layout">
+  <!-- Sidebar -->
+  <app-sidebar [expanded]="sidebarExpanded()" />
+
+  <!-- Main -->
+  <div class="main-wrapper">
+    <!-- Top bar -->
+    <header class="topbar">
+      <button
+        class="toggle-btn"
+        (click)="toggleSidebar()"
+        [attr.aria-label]="sidebarExpanded() ? 'Collapse sidebar' : 'Expand sidebar'"
+      >
+        <span>{{ sidebarExpanded() ? '◀' : '▶' }}</span>
+      </button>
+      <span class="topbar-title">{{ title() }}</span>
+      <div class="topbar-actions">
+        <button class="topbar-btn">🔔</button>
+        <div class="avatar">JD</div>
+      </div>
+    </header>
+
+    <!-- Content -->
+    <router-outlet></router-outlet>
+  </div>
+</div>

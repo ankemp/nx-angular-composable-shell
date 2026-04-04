@@ -1,0 +1,8 @@
+#!/bin/sh
+# Regenerates nacs-package.schema.json after git checkout / git switch so the
+# IDE schema reflects the branch's extension points.
+#
+# $3 is 1 for a branch checkout, 0 for a file checkout — skip file checkouts.
+if [ "$3" = "1" ]; then
+  npx nx sync
+fi

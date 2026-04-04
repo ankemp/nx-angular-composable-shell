@@ -1,0 +1,9 @@
+{
+  "js/ts.tsdk.path": "node_modules/typescript/lib",
+  "json.schemas": [
+    {
+      "fileMatch": ["/libs/*/package.json"],
+      "url": "./libs/build-tools/nacs-package.schema.json"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "generators": {
+    "sync-schema": {
+      "implementation": "./src/generators/sync-schema/generator",
+      "schema": "./src/generators/sync-schema/schema.json",
+      "description": "Sync generator: scans workspace extension points and writes nacs-package.schema.json for IDE autocompletion."
+    }
+  }
+}

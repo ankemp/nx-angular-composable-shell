@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "client-config.schema.json",
+  "title": "ClientConfig",
+  "description": "Configuration schema for a dynamic shell client build",
+  "type": "object",
+  "required": ["clientId", "features"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference"
+    },
+    "clientId": {
+      "type": "string",
+      "description": "Unique identifier for this client configuration",
+      "minLength": 1
+    },
+    "features": {
+      "type": "array",
+      "description": "List of feature modules to include in this client build",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/FeatureConfig"
+      }
+    }
+  },
+  "$defs": {
+    "FeatureConfig": {
+      "type": "object",
+      "description": "Configuration for a single lazy-loaded feature module. Routing metadata (path, exportName, title, icon) is discovered from the library's own package.json nacs-contributions field.",
+      "required": ["module"],
+      "additionalProperties": false,
+      "properties": {
+        "module": {
+          "type": "string",
+          "description": "The npm package name or workspace alias for the feature module",
+          "minLength": 1
+        },
+        "version": {
+          "type": "string",
+          "description": "Optional specific npm version to install for this feature. When omitted, the local workspace source is used.",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?(\\+[a-zA-Z0-9.]+)?$"
+        },
+        "overrides": {
+          "$ref": "#/$defs/FeatureOverrides"
+        }
+      }
+    },
+    "FeatureOverrides": {
+      "type": "object",
+      "description": "Optional client-specific overrides for values discovered from the library's nacs-contributions metadata.",
+      "required": ["title"],
+      "additionalProperties": false,
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Override the display label for this feature in the navigation menu",
+          "minLength": 1
+        },
+        "icon": {
+          "type": "string",
+          "description": "Override the icon for this feature in the navigation menu (emoji or icon identifier)",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

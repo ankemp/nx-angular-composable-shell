@@ -1,0 +1,34 @@
+{
+  "name": "@nacs/feature-b",
+  "version": "1.0.0",
+  "peerDependencies": {
+    "@angular/core": "^21.2.0",
+    "@angular/router": "^21.2.0"
+  },
+  "sideEffects": false,
+  "nacs-contributions": {
+    "primary": {
+      "path": "feature-b",
+      "exportName": "featureBRoutes",
+      "title": "Feature B",
+      "icon": "💬"
+    },
+    "extensions": {
+      "admin": [
+        {
+          "path": "feature-b-settings",
+          "exportName": "featureBAdminRoutes",
+          "title": "Feature B Settings",
+          "icon": "🔧"
+        }
+      ],
+      "dashboard-widget": [
+        {
+          "exportName": "FeatureBWidget",
+          "title": "Feature B Summary",
+          "icon": "💬"
+        }
+      ]
+    }
+  }
+}

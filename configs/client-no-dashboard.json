@@ -1,0 +1,5 @@
+{
+  "$schema": "./client-config.schema.json",
+  "clientId": "client-no-dashboard",
+  "features": [{ "module": "@nacs/feature-a" }, { "module": "@nacs/feature-b" }]
+}

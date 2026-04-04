@@ -1,0 +1,88 @@
+/* ── Layout ─────────────────────────────────────────── */
+:host {
+  display: block;
+  height: 100vh;
+  font-family: 'Segoe UI', system-ui, sans-serif;
+}
+
+.app-layout {
+  display: flex;
+  height: 100vh;
+  background: #f0f2f5;
+}
+
+/* ── Main Wrapper ────────────────────────────────────── */
+.main-wrapper {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* ── Topbar ──────────────────────────────────────────── */
+.topbar {
+  height: 56px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 20px;
+  border-bottom: 1px solid #e4e6ef;
+  flex-shrink: 0;
+}
+
+.toggle-btn {
+  background: none;
+  border: 1px solid #e4e6ef;
+  border-radius: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  color: #666;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+
+.toggle-btn:hover {
+  background: #f0f2f5;
+}
+
+.topbar-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1d2e;
+  flex: 1;
+}
+
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.topbar-btn {
+  background: none;
+  border: none;
+  font-size: 1.2rem;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.topbar-btn:hover {
+  background: #f0f2f5;
+}
+
+.avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #5b7cf7;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+}

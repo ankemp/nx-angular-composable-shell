@@ -1,0 +1,14 @@
+{
+  "executors": {
+    "prepare-build": {
+      "implementation": "./src/executors/prepare-build/executor",
+      "schema": "./src/executors/prepare-build/schema.json",
+      "description": "Generates app.composition.generated.ts from client config and library package.json metadata."
+    },
+    "sync-schema": {
+      "implementation": "./src/executors/sync-schema/executor",
+      "schema": "./src/executors/sync-schema/schema.json",
+      "description": "Scans workspace extension points and writes the nacs-package.schema.json for IDE autocompletion."
+    }
+  }
+}

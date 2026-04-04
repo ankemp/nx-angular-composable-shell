@@ -1,0 +1,10 @@
+{
+  "name": "@nacs/core-admin",
+  "nacs-contributions": {
+    "extensionPoints": {
+      "admin": {
+        "itemType": "route"
+      }
+    }
+  }
+}

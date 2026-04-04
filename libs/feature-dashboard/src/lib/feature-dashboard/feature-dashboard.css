@@ -1,0 +1,205 @@
+/* ── Content ─────────────────────────────────────────── */
+.content {
+  flex: 1;
+  padding: 24px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* ── Stats ───────────────────────────────────────────── */
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.stat-card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.stat-value {
+  font-size: 1.6rem;
+  font-weight: 700;
+  color: #1a1d2e;
+}
+
+.stat-label {
+  font-size: 0.8rem;
+  color: #888;
+  margin-top: 4px;
+}
+
+.stat-change {
+  font-size: 0.8rem;
+  font-weight: 600;
+  margin-top: 8px;
+}
+
+.stat-change.positive {
+  color: #27ae60;
+}
+.stat-change.negative {
+  color: #e74c3c;
+}
+
+/* ── Widget Grid ─────────────────────────────────────── */
+.widget-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 16px;
+}
+
+.widget-card {
+  min-height: 120px;
+}
+
+/* ── Section Grid ────────────────────────────────────── */
+.section-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* ── Card ────────────────────────────────────────────── */
+.card {
+  background: #ffffff;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+}
+
+.card-header {
+  font-size: 0.85rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: #888;
+  margin-bottom: 16px;
+}
+
+/* ── Activity List ───────────────────────────────────── */
+.activity-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.activity-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 0.875rem;
+  color: #444;
+}
+
+.activity-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #e8ecff;
+  color: #5b7cf7;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.activity-body {
+  flex: 1;
+}
+
+.activity-user {
+  font-weight: 600;
+  color: #1a1d2e;
+}
+
+.activity-time {
+  font-size: 0.75rem;
+  color: #aaa;
+  white-space: nowrap;
+}
+
+/* ── Quick Actions ───────────────────────────────────── */
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.qa-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border: 1px solid #e4e6ef;
+  border-radius: 8px;
+  background: #fafbff;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #333;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.qa-btn:hover {
+  background: #e8ecff;
+  border-color: #5b7cf7;
+  color: #5b7cf7;
+}
+
+/* ── Status List ─────────────────────────────────────── */
+.status-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.875rem;
+  color: #444;
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-dot.ok {
+  background: #27ae60;
+}
+.status-dot.warn {
+  background: #e67e22;
+}
+
+.status-badge {
+  margin-left: auto;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 20px;
+}
+
+.status-badge.ok {
+  background: #eafaf1;
+  color: #27ae60;
+}
+.status-badge.warn {
+  background: #fef3e2;
+  color: #e67e22;
+}

@@ -1,0 +1,24 @@
+{
+  "name": "@nacs/feature-dashboard",
+  "version": "1.0.0",
+  "peerDependencies": {
+    "@angular/common": "^21.2.0",
+    "@angular/core": "^21.2.0",
+    "@angular/router": "^21.2.0"
+  },
+  "sideEffects": false,
+  "nacs-contributions": {
+    "primary": {
+      "path": "dashboard",
+      "exportName": "featureDashboardRoutes",
+      "title": "Dashboard",
+      "icon": "🏠"
+    },
+    "extensionPoints": {
+      "dashboard-widget": {
+        "tokenExportName": "DASHBOARD_WIDGETS",
+        "itemType": "lazy-component"
+      }
+    }
+  }
+}

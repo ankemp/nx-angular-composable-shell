@@ -1,0 +1,27 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "importHelpers": true,
+    "target": "es2015",
+    "module": "esnext",
+    "lib": ["es2020", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "baseUrl": ".",
+    "paths": {
+      "@nacs/feature-a": ["libs/feature-a/src/index.ts"],
+      "@nacs/feature-b": ["libs/feature-b/src/index.ts"],
+      "@nacs/feature-dashboard": ["libs/feature-dashboard/src/index.ts"],
+      "@nacs/core-admin": ["libs/core-admin/src/index.ts"],
+      "@nacs/shell-nav": ["libs/shell-nav/src/index.ts"],
+      "@nacs/build-tools": ["libs/build-tools/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"]
+}

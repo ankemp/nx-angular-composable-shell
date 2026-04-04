@@ -1,0 +1,5 @@
+{
+  "name": "@nacs/build-tools",
+  "executors": "./executors.json",
+  "generators": "./generators.json"
+}

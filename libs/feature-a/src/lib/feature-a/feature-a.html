@@ -1,0 +1,36 @@
+<div class="feature-card">
+  <div class="feature-header">
+    <span class="feature-badge">A</span>
+    <div>
+      <h2 class="feature-title">Feature A</h2>
+      <span class="feature-version">v2.0.0</span>
+    </div>
+  </div>
+  <p class="feature-description">
+    This is Feature A — a standalone micro-frontend module loaded dynamically
+    into the shell.
+  </p>
+  <div class="feature-stats">
+    <div class="stat">
+      <span class="stat-value">{{ svc.recordsProcessed() }}</span>
+      <span class="stat-label">Records Processed</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ svc.successRate() }}%</span>
+      <span class="stat-label">Success Rate</span>
+    </div>
+    <div class="stat">
+      <span class="stat-value">{{ svc.lastSyncedAt() | date: 'short' }}</span>
+      <span class="stat-label">Last Sync</span>
+    </div>
+  </div>
+  <div class="feature-actions">
+    <button class="process-btn" (click)="svc.simulate()">
+      ▶ Process Records
+    </button>
+    <p class="shared-note">
+      State is shared with the Dashboard widget via
+      <code>FeatureAService</code>.
+    </p>
+  </div>
+</div>

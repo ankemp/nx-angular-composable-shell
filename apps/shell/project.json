@@ -1,0 +1,106 @@
+{
+  "name": "shell",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "projectType": "application",
+  "prefix": "app",
+  "sourceRoot": "apps/shell/src",
+  "tags": [],
+  "targets": {
+    "prepare-build": {
+      "executor": "@nacs/build-tools:prepare-build",
+      "inputs": [
+        "{workspaceRoot}/configs/*.json",
+        "{workspaceRoot}/libs/build-tools/src/**/*.ts"
+      ],
+      "outputs": [
+        "{workspaceRoot}/apps/shell/src/app/app.composition.generated.ts"
+      ],
+      "options": {
+        "client": "client-dev"
+      },
+      "configurations": {
+        "dev": {
+          "client": "client-dev"
+        }
+      },
+      "syncGenerators": ["@nacs/build-tools:sync-schema"]
+    },
+    "build": {
+      "executor": "@angular/build:application",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/apps/shell",
+        "browser": "apps/shell/src/main.ts",
+        "tsConfig": "apps/shell/tsconfig.app.json",
+        "assets": [
+          {
+            "glob": "**/*",
+            "input": "apps/shell/public"
+          }
+        ],
+        "styles": ["apps/shell/src/styles.css"]
+      },
+      "configurations": {
+        "production": {
+          "budgets": [
+            {
+              "type": "initial",
+              "maximumWarning": "500kb",
+              "maximumError": "1mb"
+            },
+            {
+              "type": "anyComponentStyle",
+              "maximumWarning": "4kb",
+              "maximumError": "8kb"
+            }
+          ],
+          "outputHashing": "all"
+        },
+        "development": {
+          "optimization": false,
+          "extractLicenses": false,
+          "sourceMap": true
+        }
+      },
+      "defaultConfiguration": "production"
+    },
+    "build-client": {
+      "executor": "nx:run-commands",
+      "dependsOn": [{ "target": "prepare-build", "params": "forward" }],
+      "outputs": ["{workspaceRoot}/dist/apps/shell"],
+      "options": {
+        "command": "nx run shell:build:production",
+        "forwardAllArgs": false
+      }
+    },
+    "serve": {
+      "continuous": true,
+      "executor": "@angular/build:dev-server",
+      "configurations": {
+        "production": {
+          "buildTarget": "shell:build:production"
+        },
+        "development": {
+          "buildTarget": "shell:build:development"
+        },
+        "dev": {
+          "buildTarget": "shell:build:development"
+        }
+      },
+      "defaultConfiguration": "development",
+      "dependsOn": [{ "target": "prepare-build", "configuration": "dev" }]
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint"
+    },
+    "serve-static": {
+      "continuous": true,
+      "executor": "@nx/web:file-server",
+      "options": {
+        "buildTarget": "shell:build",
+        "staticFilePath": "dist/apps/shell/browser",
+        "spa": true
+      }
+    }
+  }
+}

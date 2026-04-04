@@ -1,0 +1,42 @@
+{
+  "name": "@nacs/feature-a",
+  "version": "2.0.0",
+  "peerDependencies": {
+    "@angular/core": "^21.2.0",
+    "@angular/router": "^21.2.0"
+  },
+  "sideEffects": false,
+  "nacs-contributions": {
+    "primary": {
+      "path": "feature-a",
+      "exportName": "featureARoutes",
+      "title": "Feature A",
+      "icon": "📊"
+    },
+    "extensions": {
+      "admin": [
+        {
+          "path": "feature-a-settings",
+          "exportName": "featureAAdminRoutes",
+          "title": "Feature A Settings",
+          "icon": "⚙️"
+        }
+      ],
+      "dashboard-widget": [
+        {
+          "exportName": "FeatureAWidget",
+          "title": "Feature A Summary",
+          "icon": "📊"
+        }
+      ],
+      "nav-badge": [
+        {
+          "exportName": "FeatureANavBadge",
+          "routePath": "feature-a",
+          "title": "Feature A",
+          "icon": "📊"
+        }
+      ]
+    }
+  }
+}

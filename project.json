@@ -1,0 +1,19 @@
+{
+  "name": "@nx-angular-composeable-shell/source",
+  "$schema": "node_modules/nx/schemas/project-schema.json",
+  "targets": {
+    "sync-schema": {
+      "executor": "@nacs/build-tools:sync-schema",
+      "inputs": ["{workspaceRoot}/libs/**/package.json"],
+      "outputs": ["{workspaceRoot}/libs/build-tools/nacs-package.schema.json"]
+    },
+    "local-registry": {
+      "executor": "@nx/js:verdaccio",
+      "options": {
+        "port": 4873,
+        "config": ".verdaccio/config.yml",
+        "storage": "tmp/local-registry/storage"
+      }
+    }
+  }
+}

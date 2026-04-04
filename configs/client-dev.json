@@ -1,0 +1,9 @@
+{
+  "$schema": "./client-config.schema.json",
+  "clientId": "dev",
+  "features": [
+    { "module": "@nacs/feature-dashboard" },
+    { "module": "@nacs/feature-a" },
+    { "module": "@nacs/feature-b" }
+  ]
+}

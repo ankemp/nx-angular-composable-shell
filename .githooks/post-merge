@@ -1,0 +1,4 @@
+#!/bin/sh
+# Regenerates nacs-package.schema.json after git pull / git merge so the IDE
+# schema for nacs-contributions is always in sync with the workspace.
+npx nx sync

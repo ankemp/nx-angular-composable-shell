@@ -1,0 +1,11 @@
+{
+  "name": "@nacs/shell-nav",
+  "nacs-contributions": {
+    "extensionPoints": {
+      "nav-badge": {
+        "itemType": "lazy-component",
+        "tokenExportName": "NAV_BADGES"
+      }
+    }
+  }
+}
