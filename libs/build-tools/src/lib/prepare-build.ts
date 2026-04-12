@@ -1,6 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as semver from 'semver';
 import { readJsonFile } from '@nx/devkit';
 import { readPackageJson } from '@nx/workspace';
@@ -22,6 +22,52 @@ import {
 import { resolvePackageJson } from './resolve';
 import { emitComposition } from './emit';
 
+function isAlreadyInstalled(
+  alias: string,
+  expectedVersion: string,
+  root: string,
+): boolean {
+  const pkgJsonPath = path.join(root, 'node_modules', alias, 'package.json');
+  if (!fs.existsSync(pkgJsonPath)) return false;
+  try {
+    const pkg = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'));
+    return pkg.version === expectedVersion;
+  } catch {
+    return false;
+  }
+}
+
+function installVersionedPackages(
+  packages: string[],
+  root: string,
+  retries = 2,
+): void {
+  const args = ['install', ...packages, '--no-save'];
+  for (let attempt = 1; attempt <= retries + 1; attempt++) {
+    try {
+      const output = execFileSync('npm', args, {
+        cwd: root,
+        encoding: 'utf-8',
+        timeout: 120_000,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      console.log(output);
+      return;
+    } catch (err: unknown) {
+      const stderr = (err as { stderr?: string }).stderr ?? '';
+      if (attempt <= retries) {
+        console.warn(
+          `⚠️  npm install attempt ${attempt} failed, retrying...\n${stderr}`,
+        );
+      } else {
+        throw new BuildPreparationError(
+          `❌ Failed to install versioned packages after ${retries + 1} attempts:\n${stderr}`,
+        );
+      }
+    }
+  }
+}
+
 export function runPrepareBuild(client: string, root: string): void {
   const configPath = path.join(root, 'configs', `${client}.json`);
   const config = validateClientConfig(readJsonFile(configPath), configPath);
@@ -39,30 +85,43 @@ export function runPrepareBuild(client: string, root: string): void {
   // call. Running npm install --no-save once per package causes each invocation
   // to reconcile node_modules against package.json, removing packages installed
   // by previous --no-save calls. A single combined install avoids this.
-  const versionedInstalls: string[] = [];
+  const versionedInstalls: {
+    spec: string;
+    alias: string;
+    version: string;
+    label: string;
+  }[] = [];
 
   const importPaths = config.features.map((feature) => {
     if (feature.version) {
       const alias = `${feature.module}-${feature.version}`;
-      versionedInstalls.push(
-        `${alias}@npm:${feature.module}@${feature.version}`,
-      );
+      versionedInstalls.push({
+        spec: `${alias}@npm:${feature.module}@${feature.version}`,
+        alias,
+        version: feature.version,
+        label: `${feature.module}@${feature.version}`,
+      });
       return alias;
     }
     return feature.module;
   });
 
   if (versionedInstalls.length > 0) {
-    console.log(
-      `📦 Installing versioned packages:\n  ${versionedInstalls.join('\n  ')}`,
-    );
-    try {
-      execSync(`npm install ${versionedInstalls.join(' ')} --no-save`, {
-        stdio: 'inherit',
-      });
-    } catch {
-      throw new BuildPreparationError(
-        `❌ Failed to install versioned packages`,
+    console.log(`📦 Versioned packages:`);
+    const toInstall = versionedInstalls.filter(({ alias, version, label }) => {
+      const cached = isAlreadyInstalled(alias, version, root);
+      console.log(
+        cached
+          ? `  ✅ ${label} — already installed`
+          : `  📥 ${label} — installing from registry`,
+      );
+      return !cached;
+    });
+
+    if (toInstall.length > 0) {
+      installVersionedPackages(
+        toInstall.map((e) => e.spec),
+        root,
       );
     }
   }
