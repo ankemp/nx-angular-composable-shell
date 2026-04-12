@@ -3,6 +3,7 @@ import * as path from 'path';
 import { readJsonFile } from '@nx/devkit';
 import { readPackageJson } from '@nx/workspace';
 import {
+  BuildPreparationError,
   validateNacsPackageJson,
   validateTsconfigBase,
   type NacsPackageJson,
@@ -21,14 +22,16 @@ export function resolvePackageJson(
   } else {
     // Local: resolve via tsconfig.base.json compilerOptions.paths
     const tsconfigPath = path.join(root, 'tsconfig.base.json');
-    const tsconfig = validateTsconfigBase(readJsonFile(tsconfigPath), tsconfigPath);
+    const tsconfig = validateTsconfigBase(
+      readJsonFile(tsconfigPath),
+      tsconfigPath,
+    );
     const modulePaths = tsconfig.compilerOptions?.paths?.[module];
     if (!modulePaths || modulePaths.length === 0) {
-      console.error(
+      throw new BuildPreparationError(
         `❌ Cannot resolve local path for module: ${module}\n` +
           `   Ensure it is listed in tsconfig.base.json compilerOptions.paths.`,
       );
-      process.exit(1);
     }
     // modulePaths[0] is e.g. "libs/feature-a/src/index.ts"
     // dirname twice: src/index.ts → src → libs/feature-a (the package root)
@@ -36,9 +39,13 @@ export function resolvePackageJson(
   }
 
   if (!fs.existsSync(pkgDir)) {
-    console.error(`❌ Package directory not found: ${pkgDir}`);
-    process.exit(1);
+    throw new BuildPreparationError(
+      `❌ Package directory not found: ${pkgDir}`,
+    );
   }
 
-  return validateNacsPackageJson(readPackageJson(pkgDir), `${module} (${pkgDir})`);
+  return validateNacsPackageJson(
+    readPackageJson(pkgDir),
+    `${module} (${pkgDir})`,
+  );
 }
