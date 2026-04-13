@@ -167,12 +167,7 @@ function hasMenuData(route: Route): route is Route & { data: MenuRouteData } {
     </nav>
 
     <div class="sidebar-footer">
-      <a
-        [routerLink]="['/admin']"
-        routerLinkActive="active"
-        class="nav-item"
-        (click)="$event.preventDefault()"
-      >
+      <a [routerLink]="['/admin']" routerLinkActive="active" class="nav-item">
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Admin</span>
       </a>
