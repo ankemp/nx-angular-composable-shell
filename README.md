@@ -22,7 +22,7 @@ This repository is a Proof of Concept (POC), not a production-ready framework. I
 
 This repo is paired with a LinkedIn article series. The five-part series will be linked here as each part is published.
 
-1. NACS Part 1: The Hidden Architectural Tax — Why Build-Time Composition Wins
+1. [NACS Part 1: The Hidden Architectural Tax — Why Build-Time Composition Wins](https://www.linkedin.com/pulse/nacs-part-1-hidden-architectural-tax-why-build-time-composition-kemp-gzuhc/)
 2. NACS Part 2: One Config File. One Client. Zero Leaked Features.
 3. NACS Part 3: A Platform Nobody Uses Is Just a Tax
 4. NACS Part 4: The Shell That Doesn't Know What It Contains
