@@ -24,7 +24,7 @@ function hasMenuData(route: Route): route is Route & { data: MenuRouteData } {
 }
 
 @Component({
-  selector: 'app-sidebar',
+  selector: 'lib-sidebar',
   imports: [RouterModule, NgComponentOutlet],
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
