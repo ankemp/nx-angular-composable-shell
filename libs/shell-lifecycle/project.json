@@ -1,0 +1,9 @@
+{
+  "name": "shell-lifecycle",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/shell-lifecycle/src",
+  "projectType": "library",
+  "tags": [],
+  "// targets": "to see all targets run: nx show project shell-lifecycle --web",
+  "targets": {}
+}

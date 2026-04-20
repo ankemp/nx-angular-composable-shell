@@ -1,0 +1,15 @@
+{
+  "name": "@nacs/shell-lifecycle",
+  "nacs-contributions": {
+    "extensionPoints": {
+      "lifecycle:user.logout": {
+        "itemType": "lifecycle-hook",
+        "tokenExportName": "LOGOUT_HANDLERS"
+      },
+      "lifecycle:session.expired": {
+        "itemType": "lifecycle-hook",
+        "tokenExportName": "SESSION_EXPIRED_HANDLERS"
+      }
+    }
+  }
+}

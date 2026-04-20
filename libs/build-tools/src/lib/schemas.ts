@@ -45,11 +45,20 @@ export type ComponentExtensionItem = z.infer<
   typeof ComponentExtensionItemSchema
 >;
 
-// Extension item is either a route contribution (has `path`) or a component contribution.
+// A single item contributed to a lifecycle-hook extension point (e.g. a logout handler).
+// Only requires the exported function name — no title/icon needed.
+export const LifecycleHookItemSchema = z.object({
+  exportName: z.string(),
+});
+export type LifecycleHookItem = z.infer<typeof LifecycleHookItemSchema>;
+
+// Extension item is either a route contribution (has `path`), a component contribution,
+// or a lifecycle-hook contribution (exportName only).
 // The union is tried left-to-right: items with `path` match the route branch first.
 export const ExtensionItemSchema = z.union([
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
+  LifecycleHookItemSchema,
 ]);
 
 // Describes an extension point that a library can RECEIVE contributions into.
@@ -71,6 +80,10 @@ export const ExtensionPointDescriptorSchema = z.discriminatedUnion('itemType', [
     itemType: z.literal('route'),
     tokenExportName: z.string().optional(),
     itemTypeName: z.string().optional(),
+  }),
+  z.object({
+    itemType: z.literal('lifecycle-hook'),
+    tokenExportName: z.string(),
   }),
 ]);
 export type ExtensionPointDescriptor = z.infer<
@@ -210,10 +223,20 @@ export type LazyComponentExtPoint = {
   contributions: Array<{ item: ComponentExtensionItem; importPath: string }>;
 };
 
+export type LifecycleHookExtPoint = {
+  kind: 'lifecycle-hook';
+  name: string;
+  varName: string;
+  descriptor: Extract<ExtensionPointDescriptor, { itemType: 'lifecycle-hook' }>;
+  consumerImportPath: string;
+  contributions: Array<{ item: LifecycleHookItem; importPath: string }>;
+};
+
 export type CollectedExtPoint =
   | RouteExtPoint
   | ComponentExtPoint
-  | LazyComponentExtPoint;
+  | LazyComponentExtPoint
+  | LifecycleHookExtPoint;
 
 // Resolved primary feature after title validation
 export type ResolvedPrimaryFeature = {

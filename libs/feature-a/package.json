@@ -37,6 +37,11 @@
           "title": "Feature A",
           "icon": "📊"
         }
+      ],
+      "lifecycle:user.logout": [
+        {
+          "exportName": "featureALogoutHandler"
+        }
       ]
     }
   }

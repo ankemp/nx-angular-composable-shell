@@ -565,6 +565,136 @@ describe('runPrepareBuild — extension points', () => {
     expect(widgetExt!.contributions[0].item.exportName).toBe('FeatureAWidget');
   });
 
+  it('collects lifecycle-hook contributions from features that contribute to a lifecycle ext point', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return {
+          compilerOptions: {
+            paths: {
+              '@nacs/feature-a': ['libs/feature-a/src/index.ts'],
+              '@nacs/shell-lifecycle': ['libs/shell-lifecycle/src/index.ts'],
+            },
+          },
+        };
+      }
+      return makeClientConfig([{ module: '@nacs/feature-a' }]);
+    });
+
+    mockResolvePackageJson.mockReturnValue(
+      makeFeaturePkg(
+        '@nacs/feature-a',
+        {
+          path: 'feature-a',
+          exportName: 'R',
+          title: 'A',
+          icon: 'x',
+        },
+        {
+          'nacs-contributions': {
+            primary: {
+              path: 'feature-a',
+              exportName: 'R',
+              title: 'A',
+              icon: 'x',
+            },
+            extensions: {
+              'lifecycle:user.logout': [
+                { exportName: 'featureALogoutHandler' },
+              ],
+            },
+          },
+        },
+      ) as ReturnType<typeof resolvePackageJson>,
+    );
+
+    // shell-lifecycle: always-active lib with lifecycle-hook extension points
+    mockReadPackageJson.mockImplementation((pkgDir?: string) => {
+      if (String(pkgDir).includes('shell-lifecycle')) {
+        return {
+          name: '@nacs/shell-lifecycle',
+          'nacs-contributions': {
+            extensionPoints: {
+              'lifecycle:user.logout': {
+                itemType: 'lifecycle-hook',
+                tokenExportName: 'LOGOUT_HANDLERS',
+              },
+            },
+          },
+        } as any;
+      }
+      return makeRootPkg();
+    });
+
+    mockFs.existsSync.mockReturnValue(true);
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const logoutExt = collectedExtPoints.find(
+      (e: any) => e.name === 'lifecycle:user.logout',
+    );
+    expect(logoutExt).toBeDefined();
+    expect(logoutExt!.kind).toBe('lifecycle-hook');
+    expect(logoutExt!.contributions).toHaveLength(1);
+    expect(logoutExt!.contributions[0].item.exportName).toBe(
+      'featureALogoutHandler',
+    );
+    expect(logoutExt!.contributions[0].importPath).toBe('@nacs/feature-a');
+  });
+
+  it('generates correct varName for colon/dot-separated extension point names', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return {
+          compilerOptions: {
+            paths: {
+              '@nacs/feature-a': ['libs/feature-a/src/index.ts'],
+              '@nacs/shell-lifecycle': ['libs/shell-lifecycle/src/index.ts'],
+            },
+          },
+        };
+      }
+      return makeClientConfig([{ module: '@nacs/feature-a' }]);
+    });
+
+    mockResolvePackageJson.mockReturnValue(
+      makeFeaturePkg('@nacs/feature-a', {
+        path: 'feature-a',
+        exportName: 'R',
+        title: 'A',
+        icon: 'x',
+      }) as ReturnType<typeof resolvePackageJson>,
+    );
+
+    mockReadPackageJson.mockImplementation((pkgDir?: string) => {
+      if (String(pkgDir).includes('shell-lifecycle')) {
+        return {
+          name: '@nacs/shell-lifecycle',
+          'nacs-contributions': {
+            extensionPoints: {
+              'lifecycle:user.logout': {
+                itemType: 'lifecycle-hook',
+                tokenExportName: 'LOGOUT_HANDLERS',
+              },
+            },
+          },
+        } as any;
+      }
+      return makeRootPkg();
+    });
+
+    mockFs.existsSync.mockReturnValue(true);
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const logoutExt = collectedExtPoints.find(
+      (e: any) => e.name === 'lifecycle:user.logout',
+    );
+    expect(logoutExt).toBeDefined();
+    expect(logoutExt!.varName).toBe('extLifecycleUserLogout');
+  });
+
   it('collects lazy-component contributions from features that contribute to a lazy ext point', () => {
     mockReadJsonFile.mockImplementation((filePath: string) => {
       if (filePath.includes('tsconfig.base.json')) {

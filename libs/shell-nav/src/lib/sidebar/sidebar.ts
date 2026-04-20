@@ -11,7 +11,8 @@ import { NgComponentOutlet } from '@angular/common';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { Router, RouterModule, NavigationEnd, Route } from '@angular/router';
 import { filter, map, startWith } from 'rxjs';
-import { NAV_BADGES, NavBadge } from '../nav-badges.token';
+import { LifecycleDispatcher } from '@nacs/shell-lifecycle';
+import { NAV_BADGES } from '../nav-badges.token';
 
 interface MenuRouteData {
   title: string;
@@ -143,6 +144,34 @@ function hasMenuData(route: Route): route is Route & { data: MenuRouteData } {
       border-top: 1px solid #2d3147;
       padding: 8px 0;
     }
+
+    .user-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 16px;
+      color: #9a9fb8;
+      white-space: nowrap;
+      overflow: hidden;
+    }
+
+    .logout-btn {
+      background: none;
+      border: none;
+      color: #9a9fb8;
+      cursor: pointer;
+      font-size: 1rem;
+      margin-left: auto;
+      padding: 4px;
+      flex-shrink: 0;
+    }
+
+    :host.collapsed .logout-btn {
+      opacity: 0;
+    }
+    :host.collapsed:hover .logout-btn {
+      opacity: 1;
+    }
   `,
   template: `
     <div class="sidebar-header">
@@ -171,15 +200,17 @@ function hasMenuData(route: Route): route is Route & { data: MenuRouteData } {
         <span class="nav-icon">⚙️</span>
         <span class="nav-label">Admin</span>
       </a>
-      <a href="#" class="nav-item" (click)="$event.preventDefault()">
+      <div class="user-row">
         <span class="nav-icon">👤</span>
         <span class="nav-label">John Doe</span>
-      </a>
+        <button class="logout-btn" title="Logout" (click)="logout()">🚪</button>
+      </div>
     </div>
   `,
 })
 export class SidebarComponent {
   private readonly router = inject(Router);
+  private readonly lifecycle = inject(LifecycleDispatcher);
   private readonly resolvedBadges = signal(new Map<string, Type<unknown>>());
 
   expanded = input(true);
@@ -213,5 +244,13 @@ export class SidebarComponent {
         b.loadComponent().then((t) => [b.routePath, t] as const),
       ),
     ).then((entries) => this.resolvedBadges.set(new Map(entries)));
+  }
+
+  async logout(): Promise<void> {
+    await this.lifecycle.dispatch('user.logout');
+    // After all feature handlers have run, navigate to a post-logout destination.
+    // In a real app this would redirect to a login page or SSO endpoint.
+    console.log('[Shell] All logout handlers complete.');
+    alert('Logged out! (This is a placeholder action.)');
   }
 }

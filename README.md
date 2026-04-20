@@ -200,18 +200,21 @@ Each feature library is **self-describing**. Instead of declaring routing metada
 
 ### Extension point types
 
-Extension points are declared by **consumer** libs (e.g. `core-admin`, `feature-dashboard`, `shell-nav`) via `nacs-contributions.extensionPoints` in their `package.json`. Each extension point has an `itemType` that controls how `prepare-build` generates code for that slot.
+Extension points are declared by **consumer** libs (e.g. `core-admin`, `feature-dashboard`, `shell-nav`, `shell-lifecycle`) via `nacs-contributions.extensionPoints` in their `package.json`. Each extension point has an `itemType` that controls how `prepare-build` generates code for that slot.
 
 | `itemType`       | Import emitted                                | DI provider pattern                                                      | Status         | Example use cases                                                                                     |
 | ---------------- | --------------------------------------------- | ------------------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------- |
 | `route`          | None — lazy `loadChildren` lambda             | None (consumed directly by router)                                       | ✅ Implemented | Admin panel tabs, user settings sections, onboarding wizard steps                                     |
 | `component`      | Static class import                           | `{ provide: TOKEN, useValue: [...] }`                                    | ✅ Implemented | Dashboard widgets, sidebar nav badges, contextual help panels                                         |
+| `lazy-component` | Dynamic `import()` factory (no static import) | `{ provide: TOKEN, useValue: [{ load: () => import(...) }] }`            | ✅ Implemented | Heavy chart/editor widgets, map views — split into their own chunk even when the feature is in config |
+| `lifecycle-hook` | Static function import                        | `{ provide: TOKEN, useValue: fn, multi: true }` per contributor          | ✅ Implemented | Logout cleanup, session expiry handling, tenant switch teardown                                       |
 | `multi-provider` | Static class import                           | `{ provide: TOKEN, useClass: X, multi: true }` per contributor           | 🔲 Planned     | Global search providers, telemetry adapters, notification handlers                                    |
 | `value`          | **None** — data inlined from `package.json`   | `{ provide: TOKEN, useValue: [...] }`                                    | 🔲 Planned     | Permission/capability declarations, i18n namespace registrations, feature flags                       |
-| `lazy-component` | Dynamic `import()` factory (no static import) | `{ provide: TOKEN, useValue: [{ load: () => import(...) }] }`            | 🔲 Planned     | Heavy chart/editor widgets, map views — split into their own chunk even when the feature is in config |
 | `initializer`    | Static function import                        | `{ provide: APP_INITIALIZER, useFactory: fn, deps: [...], multi: true }` | 🔲 Planned     | Pre-fetch feature config, register service workers, warm caches before app renders                    |
 
 **Key distinction between `component` and `multi-provider`:** `component` contributions are plain objects in an array — the shell renders them but they cannot inject other services themselves. `multi-provider` contributions are DI-resolved class instances, enabling each contributor to declare its own `deps` and participate fully in Angular's dependency injection graph.
+
+**Key distinction between `lifecycle-hook` and `multi-provider`:** `lifecycle-hook` handlers are stateless functions — they cannot inject services themselves. They are called imperatively by a dispatcher at a named moment in application time (e.g. logout, session expiry). `multi-provider` contributions are DI-resolved class instances that participate fully in Angular's dependency injection graph. Use `lifecycle-hook` for fire-and-forget cleanup; use `multi-provider` when the handler needs its own dependencies.
 
 ### How extension point discovery works
 
@@ -219,11 +222,11 @@ When the pre-build script runs, it:
 
 1. Resolves each feature's `package.json` (from `node_modules` for versioned installs, from the workspace source for local)
 2. Reads `nacs-contributions.primary` to generate the top-level `generatedRoutes` array
-3. Reads `nacs-contributions.extensions.admin` (if present) to generate the `extAdmin` array
+3. Reads `nacs-contributions.extensions.*` to generate extension point arrays (e.g. `extAdmin`) and `multi: true` providers (e.g. lifecycle-hook handlers)
 
-Both arrays are written into a single file: `apps/shell/src/app/app.composition.generated.ts`.
+All generated code is written into a single file: `apps/shell/src/app/app.composition.generated.ts`.
 
-The shell's `app.routes.ts` imports both arrays and passes `extAdmin` to the `coreAdminRoutes()` factory at composition time. The Administration panel's tab navigation is derived dynamically from its child routes — no hardcoded links.
+The shell's `app.routes.ts` imports route arrays and passes them to factory functions at composition time. The shell's `app.config.ts` spreads `generatedProviders` — which includes both component/lazy-component token bindings and lifecycle-hook `multi: true` handler registrations — into the application providers.
 
 ### Adding an admin extension to a feature
 
@@ -277,6 +280,12 @@ npx nx run shell:prepare-build
 
 The admin tab will appear automatically in the Administration panel for any client config that includes this feature. Features that declare no `extensions.admin` entry contribute nothing to the admin panel — omission is the opt-out.
 
+### Adding a lifecycle hook to a feature
+
+Lifecycle hooks let features respond to application-level events (e.g. `user.logout`, `session.expired`) without importing anything from `@nacs/shell-lifecycle`. The feature exports a plain stateless function; `prepare-build` wires it into the dispatcher via `multi: true` DI providers at build time. If the feature is absent from a client config, its handler is fully tree-shaken.
+
+See [`libs/shell-lifecycle/README.md`](libs/shell-lifecycle/README.md) for the full how-to, available events, and guidance on when to use a lifecycle hook versus a `multi-provider` contribution.
+
 ---
 
 ## Platform Governance
@@ -314,4 +323,3 @@ Once feature packages are published to a private registry (such as Nexus or Arti
 
 - **Development:** Features are resolved directly from local workspace source for instant hot-reloading.
 - **Production:** Specific versions are resolved as versioned npm packages via npm aliasing, ensuring that Client A physically cannot download Client B's feature code.
-

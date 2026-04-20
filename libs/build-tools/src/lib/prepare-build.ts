@@ -12,8 +12,10 @@ import {
   validateNacsPackageJson,
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
+  LifecycleHookItemSchema,
   type NacsPrimaryContribution,
   type ComponentExtensionItem,
+  type LifecycleHookItem,
   type ValidatedPrimaryContribution,
   type ExtensionPointDescriptor,
   type CollectedExtPoint,
@@ -291,7 +293,7 @@ export function runPrepareBuild(client: string, root: string): void {
     { descriptor, consumerImportPath },
   ] of activeExtensionPoints) {
     const varName = `ext${extensionPointName
-      .split(/[-_]/)
+      .split(/[-_:.]/)
       .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
       .join('')}`;
 
@@ -359,6 +361,30 @@ export function runPrepareBuild(client: string, root: string): void {
       });
       collectedExtPoints.push({
         kind: 'lazy-component',
+        name: extensionPointName,
+        varName,
+        descriptor,
+        consumerImportPath,
+        contributions,
+      });
+    } else if (descriptor.itemType === 'lifecycle-hook') {
+      const contributions: Array<{
+        item: LifecycleHookItem;
+        importPath: string;
+      }> = [];
+      resolvedFeatures.forEach(({ importPath, pkg }) => {
+        const slotValue =
+          pkg['nacs-contributions']?.extensions?.[extensionPointName];
+        if (!slotValue) return;
+        (slotValue ?? []).forEach((item) =>
+          contributions.push({
+            item: LifecycleHookItemSchema.parse(item),
+            importPath,
+          }),
+        );
+      });
+      collectedExtPoints.push({
+        kind: 'lifecycle-hook',
         name: extensionPointName,
         varName,
         descriptor,

@@ -9,6 +9,7 @@ import type {
   CollectedExtPoint,
   ComponentExtPoint,
   LazyComponentExtPoint,
+  LifecycleHookExtPoint,
   ResolvedPrimaryFeature,
 } from './schemas';
 
@@ -86,6 +87,19 @@ export function emitComposition(
         moduleSpecifier: ext.consumerImportPath,
         namedImports: [ext.descriptor.tokenExportName],
       });
+    } else if (ext.kind === 'lifecycle-hook') {
+      // Import the token from the consumer (e.g. @nacs/shell-lifecycle)
+      src.addImportDeclaration({
+        moduleSpecifier: ext.consumerImportPath,
+        namedImports: [ext.descriptor.tokenExportName],
+      });
+      // Import each contributed handler function
+      for (const { item, importPath } of ext.contributions) {
+        src.addImportDeclaration({
+          moduleSpecifier: importPath,
+          namedImports: [item.exportName],
+        });
+      }
     }
   }
 
@@ -257,6 +271,25 @@ export function emitComposition(
       }),
     );
 
+  // Lifecycle-hook providers use multi: true so Angular aggregates handlers into an array.
+  // Each handler is registered as a separate provider entry.
+  const lifecycleProviderWriters = collectedExtPoints
+    .filter(
+      (ext): ext is LifecycleHookExtPoint => ext.kind === 'lifecycle-hook',
+    )
+    .flatMap((ext) =>
+      ext.contributions.map(({ item }) => {
+        console.log(
+          `   → lifecycle-hook "${ext.name}": ${item.exportName} [multi]`,
+        );
+        return Writers.object({
+          provide: ext.descriptor.tokenExportName,
+          useValue: item.exportName,
+          multi: 'true',
+        });
+      }),
+    );
+
   src.addVariableStatement({
     isExported: true,
     declarationKind: VariableDeclarationKind.Const,
@@ -264,7 +297,10 @@ export function emitComposition(
       {
         name: 'generatedProviders',
         type: 'Provider[]',
-        initializer: writeObjectArray(providerWriters),
+        initializer: writeObjectArray([
+          ...providerWriters,
+          ...lifecycleProviderWriters,
+        ]),
       },
     ],
   });

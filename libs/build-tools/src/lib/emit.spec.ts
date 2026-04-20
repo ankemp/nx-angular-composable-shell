@@ -6,6 +6,7 @@ import type {
   RouteExtPoint,
   ComponentExtPoint,
   LazyComponentExtPoint,
+  LifecycleHookExtPoint,
 } from './schemas';
 
 jest.mock('fs');
@@ -255,6 +256,83 @@ describe('emitComposition', () => {
     });
   });
 
+  describe('lifecycle-hook extension points', () => {
+    const lifecycleExt: LifecycleHookExtPoint = {
+      kind: 'lifecycle-hook',
+      name: 'lifecycle:user.logout',
+      varName: 'extLifecycleUserLogout',
+      descriptor: {
+        itemType: 'lifecycle-hook',
+        tokenExportName: 'LOGOUT_HANDLERS',
+      },
+      consumerImportPath: '@nacs/shell-lifecycle',
+      contributions: [
+        {
+          item: { exportName: 'featureALogoutHandler' },
+          importPath: '@nacs/feature-a',
+        },
+      ],
+    };
+
+    it('imports the token from the consumer library', () => {
+      emitComposition(basePrimaryFeatures, [lifecycleExt], '/out/comp.ts');
+      expect(writtenContent).toContain('LOGOUT_HANDLERS');
+      expect(writtenContent).toContain('@nacs/shell-lifecycle');
+    });
+
+    it('imports each contributed handler function', () => {
+      emitComposition(basePrimaryFeatures, [lifecycleExt], '/out/comp.ts');
+      expect(writtenContent).toContain('featureALogoutHandler');
+      expect(writtenContent).toContain('@nacs/feature-a');
+    });
+
+    it('does NOT emit a separate const variable for lifecycle hooks', () => {
+      emitComposition(basePrimaryFeatures, [lifecycleExt], '/out/comp.ts');
+      expect(writtenContent).not.toContain(
+        'export const extLifecycleUserLogout',
+      );
+    });
+
+    it('generates multi: true provider entries in generatedProviders', () => {
+      emitComposition(basePrimaryFeatures, [lifecycleExt], '/out/comp.ts');
+      expect(writtenContent).toContain('provide: LOGOUT_HANDLERS');
+      expect(writtenContent).toContain('useValue: featureALogoutHandler');
+      expect(writtenContent).toContain('multi: true');
+    });
+
+    it('generates multiple handler providers from multiple contributions', () => {
+      const multiExt: LifecycleHookExtPoint = {
+        ...lifecycleExt,
+        contributions: [
+          {
+            item: { exportName: 'featureALogoutHandler' },
+            importPath: '@nacs/feature-a',
+          },
+          {
+            item: { exportName: 'featureBLogoutHandler' },
+            importPath: '@nacs/feature-b',
+          },
+        ],
+      };
+      emitComposition(basePrimaryFeatures, [multiExt], '/out/comp.ts');
+      expect(writtenContent).toContain('featureALogoutHandler');
+      expect(writtenContent).toContain('featureBLogoutHandler');
+      // Both should have multi: true
+      const multiMatches = writtenContent.match(/multi: true/g);
+      expect(multiMatches).toHaveLength(2);
+    });
+
+    it('generates no provider entries when no contributions', () => {
+      const emptyLifecycle: LifecycleHookExtPoint = {
+        ...lifecycleExt,
+        contributions: [],
+      };
+      emitComposition(basePrimaryFeatures, [emptyLifecycle], '/out/comp.ts');
+      expect(writtenContent).not.toContain('provide: LOGOUT_HANDLERS');
+      expect(writtenContent).not.toContain('multi: true');
+    });
+  });
+
   describe('generatedProviders', () => {
     it('always exports generatedProviders array', () => {
       emitComposition(basePrimaryFeatures, [], '/out/comp.ts');
@@ -307,6 +385,46 @@ describe('emitComposition', () => {
       };
       emitComposition(basePrimaryFeatures, [routeExt], '/out/comp.ts');
       expect(writtenContent).not.toContain('provide: extAdmin');
+    });
+
+    it('includes lifecycle-hook multi providers alongside component providers', () => {
+      const componentExt: ComponentExtPoint = {
+        kind: 'component',
+        name: 'dashboard-widget',
+        varName: 'extDashboardWidget',
+        descriptor: {
+          itemType: 'component',
+          tokenExportName: 'DASHBOARD_WIDGETS',
+          itemTypeName: 'DashboardWidget',
+        },
+        consumerImportPath: '@nacs/feature-dashboard',
+        contributions: [],
+      };
+      const lifecycleExt: LifecycleHookExtPoint = {
+        kind: 'lifecycle-hook',
+        name: 'lifecycle:user.logout',
+        varName: 'extLifecycleUserLogout',
+        descriptor: {
+          itemType: 'lifecycle-hook',
+          tokenExportName: 'LOGOUT_HANDLERS',
+        },
+        consumerImportPath: '@nacs/shell-lifecycle',
+        contributions: [
+          {
+            item: { exportName: 'featureALogoutHandler' },
+            importPath: '@nacs/feature-a',
+          },
+        ],
+      };
+      emitComposition(
+        basePrimaryFeatures,
+        [componentExt, lifecycleExt],
+        '/out/comp.ts',
+      );
+      // Both types of providers should be present
+      expect(writtenContent).toContain('provide: DASHBOARD_WIDGETS');
+      expect(writtenContent).toContain('provide: LOGOUT_HANDLERS');
+      expect(writtenContent).toContain('multi: true');
     });
   });
 

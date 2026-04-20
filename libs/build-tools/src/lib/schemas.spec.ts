@@ -3,6 +3,7 @@ import {
   NacsGovernanceError,
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
+  LifecycleHookItemSchema,
   ExtensionPointDescriptorSchema,
   NacsContributionsSchema,
   NacsPackageJsonSchema,
@@ -99,6 +100,27 @@ describe('ComponentExtensionItemSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
+// LifecycleHookItemSchema
+// ---------------------------------------------------------------------------
+describe('LifecycleHookItemSchema', () => {
+  it('accepts valid input with exportName only', () => {
+    const input = { exportName: 'myLogoutHandler' };
+    expect(LifecycleHookItemSchema.parse(input)).toEqual(input);
+  });
+
+  it('rejects missing exportName', () => {
+    expect(() => LifecycleHookItemSchema.parse({})).toThrow();
+  });
+
+  it('strips unknown fields', () => {
+    const input = { exportName: 'handler', title: 'should be stripped' };
+    const result = LifecycleHookItemSchema.parse(input);
+    expect(result).toEqual({ exportName: 'handler' });
+    expect((result as Record<string, unknown>)['title']).toBeUndefined();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // ExtensionPointDescriptorSchema (discriminated union)
 // ---------------------------------------------------------------------------
 describe('ExtensionPointDescriptorSchema', () => {
@@ -131,6 +153,20 @@ describe('ExtensionPointDescriptorSchema', () => {
   it('accepts route with all optional fields', () => {
     const input = { itemType: 'route' };
     expect(ExtensionPointDescriptorSchema.parse(input)).toEqual(input);
+  });
+
+  it('accepts lifecycle-hook with required tokenExportName', () => {
+    const input = {
+      itemType: 'lifecycle-hook',
+      tokenExportName: 'LOGOUT_HANDLERS',
+    };
+    expect(ExtensionPointDescriptorSchema.parse(input)).toEqual(input);
+  });
+
+  it('rejects lifecycle-hook missing tokenExportName', () => {
+    expect(() =>
+      ExtensionPointDescriptorSchema.parse({ itemType: 'lifecycle-hook' }),
+    ).toThrow();
   });
 
   it('rejects unknown itemType', () => {
