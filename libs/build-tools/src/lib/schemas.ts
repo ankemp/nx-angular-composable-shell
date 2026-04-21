@@ -147,6 +147,7 @@ export type FeatureConfig = z.infer<typeof FeatureConfigSchema>;
 export const ClientConfigSchema = z.object({
   clientId: z.string(),
   features: z.array(FeatureConfigSchema),
+  defaultRoute: z.string().optional(),
 });
 export type ClientConfig = z.infer<typeof ClientConfigSchema>;
 

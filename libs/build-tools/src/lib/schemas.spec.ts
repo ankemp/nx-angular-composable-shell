@@ -261,6 +261,24 @@ describe('ClientConfigSchema', () => {
       }),
     ).toThrow();
   });
+
+  it('accepts optional defaultRoute', () => {
+    const input = {
+      clientId: 'dev',
+      features: [{ module: '@nacs/feature-a' }],
+      defaultRoute: 'feature-a',
+    };
+    expect(ClientConfigSchema.parse(input)).toEqual(input);
+  });
+
+  it('accepts config without defaultRoute', () => {
+    const input = {
+      clientId: 'dev',
+      features: [{ module: '@nacs/feature-a' }],
+    };
+    const result = ClientConfigSchema.parse(input);
+    expect(result.defaultRoute).toBeUndefined();
+  });
 });
 
 // ---------------------------------------------------------------------------

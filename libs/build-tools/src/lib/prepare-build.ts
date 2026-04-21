@@ -394,10 +394,31 @@ export function runPrepareBuild(client: string, root: string): void {
     }
   }
 
+  // --- Default route resolution ---
+  let resolvedDefaultRoute: string | undefined;
+  if (config.defaultRoute) {
+    const knownModules = config.features.map((f) => f.module);
+    if (!knownModules.includes(config.defaultRoute)) {
+      throw new BuildPreparationError(
+        `❌ Invalid "defaultRoute": "${config.defaultRoute}" in client config for: ${client}\n` +
+          `   Must match one of the declared feature modules: ${knownModules.join(', ')}`,
+      );
+    }
+    const featureIndex = config.features.findIndex(
+      (f) => f.module === config.defaultRoute,
+    );
+    resolvedDefaultRoute = resolvedPrimaryFeatures[featureIndex].primary.path;
+  }
+
   // --- Emit ---
   const outputPath = path.join(
     root,
     'apps/shell/src/app/app.composition.generated.ts',
   );
-  emitComposition(resolvedPrimaryFeatures, collectedExtPoints, outputPath);
+  emitComposition(
+    resolvedPrimaryFeatures,
+    collectedExtPoints,
+    outputPath,
+    resolvedDefaultRoute,
+  );
 }

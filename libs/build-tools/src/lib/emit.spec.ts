@@ -84,6 +84,18 @@ describe('emitComposition', () => {
       expect(writtenContent).toContain('pathMatch: "full"');
     });
 
+    it('generates wildcard redirect to defaultRoute when provided', () => {
+      emitComposition(basePrimaryFeatures, [], '/out/comp.ts', 'feature-b');
+      expect(writtenContent).toContain('path: "**"');
+      expect(writtenContent).toContain('redirectTo: "feature-b"');
+      expect(writtenContent).toContain('pathMatch: "full"');
+    });
+
+    it('falls back to first feature when defaultRoute is undefined', () => {
+      emitComposition(basePrimaryFeatures, [], '/out/comp.ts', undefined);
+      expect(writtenContent).toContain('redirectTo: "feature-a"');
+    });
+
     it('includes title and icon data for routes', () => {
       emitComposition(basePrimaryFeatures, [], '/out/comp.ts');
       expect(writtenContent).toContain('"Feature A"');

@@ -343,6 +343,96 @@ describe('runPrepareBuild — validation', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Default route
+// ---------------------------------------------------------------------------
+describe('runPrepareBuild — defaultRoute', () => {
+  it('resolves defaultRoute module to route path and passes to emitComposition', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return { compilerOptions: { paths: {} } };
+      }
+      return {
+        clientId: 'test',
+        features: [
+          { module: '@nacs/feature-a' },
+          { module: '@nacs/feature-b' },
+        ],
+        defaultRoute: '@nacs/feature-b',
+      };
+    });
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-a') {
+        return makeFeaturePkg('@nacs/feature-a', {
+          path: 'feature-a',
+          exportName: 'R',
+          title: 'A',
+          icon: 'x',
+        }) as ReturnType<typeof resolvePackageJson>;
+      }
+      return makeFeaturePkg('@nacs/feature-b', {
+        path: 'feature-b',
+        exportName: 'S',
+        title: 'B',
+        icon: 'y',
+      }) as ReturnType<typeof resolvePackageJson>;
+    });
+
+    runPrepareBuild('test', ROOT);
+
+    // Should resolve @nacs/feature-b module → 'feature-b' route path
+    expect(mockEmitComposition).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Array),
+      expect.any(String),
+      'feature-b',
+    );
+  });
+
+  it('passes undefined when defaultRoute is not specified', () => {
+    mockResolvePackageJson.mockReturnValue(
+      makeFeaturePkg('@nacs/feature-a', {
+        path: 'feature-a',
+        exportName: 'R',
+        title: 'A',
+        icon: 'x',
+      }) as ReturnType<typeof resolvePackageJson>,
+    );
+
+    runPrepareBuild('test', ROOT);
+
+    expect(mockEmitComposition).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.any(Array),
+      expect.any(String),
+      undefined,
+    );
+  });
+
+  it('throws BuildPreparationError when defaultRoute does not match any feature module', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return { compilerOptions: { paths: {} } };
+      }
+      return {
+        clientId: 'test',
+        features: [{ module: '@nacs/feature-a' }],
+        defaultRoute: '@nacs/nonexistent',
+      };
+    });
+    mockResolvePackageJson.mockReturnValue(
+      makeFeaturePkg('@nacs/feature-a', {
+        path: 'feature-a',
+        exportName: 'R',
+        title: 'A',
+        icon: 'x',
+      }) as ReturnType<typeof resolvePackageJson>,
+    );
+
+    expect(() => runPrepareBuild('test', ROOT)).toThrow(BuildPreparationError);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Extension point discovery
 // ---------------------------------------------------------------------------
 describe('runPrepareBuild — extension points', () => {

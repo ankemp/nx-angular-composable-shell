@@ -23,6 +23,11 @@
       "items": {
         "$ref": "#/$defs/FeatureConfig"
       }
+    },
+    "defaultRoute": {
+      "type": "string",
+      "description": "The module whose route should be the default redirect. Must match one of the 'module' values in the features array. When omitted, the first feature in the array is used.",
+      "minLength": 1
     }
   },
   "$defs": {

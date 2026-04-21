@@ -48,6 +48,7 @@ export function emitComposition(
   resolvedPrimaryFeatures: ResolvedPrimaryFeature[],
   collectedExtPoints: CollectedExtPoint[],
   outputPath: string,
+  defaultRoute?: string,
 ): void {
   const project = new Project({ useInMemoryFileSystem: true });
   const src = project.createSourceFile('composition.ts', '', {
@@ -112,9 +113,11 @@ export function emitComposition(
         { title: primary.title, icon: primary.icon },
       ),
   );
+  const redirectTarget =
+    defaultRoute ?? resolvedPrimaryFeatures[0].primary.path;
   const wildcardWriter = Writers.object({
     path: '"**"',
-    redirectTo: JSON.stringify(resolvedPrimaryFeatures[0].primary.path),
+    redirectTo: JSON.stringify(redirectTarget),
     pathMatch: '"full"',
   });
   src.addVariableStatement({
