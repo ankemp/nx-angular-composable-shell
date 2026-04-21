@@ -122,14 +122,15 @@ Configs live in `configs/` and follow the schema defined in `configs/client-conf
 }
 ```
 
-**Example — production with pinned versions (`configs/client-prod-v1.json`):**
+**Example — production with pinned versions, a nav override, and a default route:**
 
 ```json
 {
   "$schema": "./client-config.schema.json",
   "clientId": "client-prod-v1",
+  "defaultRoute": "@nacs/feature-a",
   "features": [
-    { "module": "@nacs/feature-dashboard", "version": "1.0.0" },
+    { "module": "@nacs/feature-dashboard", "version": "1.0.0", "overrides": { "title": "Home", "icon": "🏠" } },
     { "module": "@nacs/feature-a", "version": "1.0.0" }
   ]
 }
@@ -137,19 +138,21 @@ Configs live in `configs/` and follow the schema defined in `configs/client-conf
 
 Routing metadata (path, export name, nav title, icon) is **not declared in the config**. It is discovered from the feature library's own `package.json` at build time — see [Feature Contributions & Extensions](#feature-contributions--extensions) below.
 
-### Feature config fields
+### Config fields
+
+| Field          | Required | Description                                                                                                       |
+| -------------- | -------- | ----------------------------------------------------------------------------------------------------------------- |
+| `clientId`     | Yes      | Unique identifier for this client configuration.                                                                  |
+| `features`     | Yes      | Ordered list of feature modules to include. The first entry is the default redirect unless `defaultRoute` is set. |
+| `defaultRoute` | No       | Module name (must match a `features[].module` value) whose route is the default redirect.                         |
+
+### Feature fields
 
 | Field       | Required | Description                                                                                 |
 | ----------- | -------- | ------------------------------------------------------------------------------------------- |
-| `module`    | Yes      | npm package name for the feature library                                                    |
+| `module`    | Yes      | npm package name for the feature library.                                                   |
 | `version`   | No       | Pins to a specific published version from the registry. Omit to use local workspace source. |
 | `overrides` | No       | Optionally override `title` or `icon` discovered from the library for this client only.     |
-
-**Example with overrides:**
-
-```json
-{ "module": "@nacs/feature-dashboard", "overrides": { "title": "Home", "icon": "🏠" } }
-```
 
 To add a new client environment, create a new `configs/<client-name>.json` file referencing the schema and run:
 
