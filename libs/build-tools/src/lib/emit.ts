@@ -10,6 +10,7 @@ import type {
   ComponentExtPoint,
   LazyComponentExtPoint,
   LifecycleHookExtPoint,
+  ValueExtPoint,
   ResolvedPrimaryFeature,
 } from './schemas';
 
@@ -101,6 +102,12 @@ export function emitComposition(
           namedImports: [item.exportName],
         });
       }
+    } else if (ext.kind === 'value') {
+      // Only import the token from the consumer — no feature imports (data is inlined)
+      src.addImportDeclaration({
+        moduleSpecifier: ext.consumerImportPath,
+        namedImports: [ext.descriptor.tokenExportName],
+      });
     }
   }
 
@@ -258,14 +265,41 @@ export function emitComposition(
           declarations: [{ name: ext.varName, initializer: '[]' }],
         });
       }
+    } else if (ext.kind === 'value') {
+      if (ext.contributions.length > 0) {
+        console.log(
+          `\n⚙️  Generating value extension point "${ext.name}" contributions:`,
+        );
+        const entryWriters: WriterFunction[] = ext.contributions.map(({ item }) => {
+          console.log(`   → value item [inline data]`);
+          return (writer) => writer.write(JSON.stringify(item, null, 2));
+        });
+        src.addVariableStatement({
+          isExported: true,
+          declarationKind: VariableDeclarationKind.Const,
+          declarations: [{
+            name: ext.varName,
+            initializer: writeObjectArray(entryWriters),
+          }],
+        });
+      } else {
+        console.log(
+          `\n⚙️  No contributions for value extension point "${ext.name}" — generating empty array.`,
+        );
+        src.addVariableStatement({
+          isExported: true,
+          declarationKind: VariableDeclarationKind.Const,
+          declarations: [{ name: ext.varName, initializer: '[]' }],
+        });
+      }
     }
   }
 
   // generatedProviders — always emitted so app.config.ts can spread it unconditionally
   const providerWriters = collectedExtPoints
     .filter(
-      (ext): ext is ComponentExtPoint | LazyComponentExtPoint =>
-        ext.kind === 'component' || ext.kind === 'lazy-component',
+      (ext): ext is ComponentExtPoint | LazyComponentExtPoint | ValueExtPoint =>
+        ext.kind === 'component' || ext.kind === 'lazy-component' || ext.kind === 'value',
     )
     .map((ext) =>
       Writers.object({

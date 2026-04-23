@@ -52,13 +52,18 @@ export const LifecycleHookItemSchema = z.object({
 });
 export type LifecycleHookItem = z.infer<typeof LifecycleHookItemSchema>;
 
+// A single item contributed to a value extension point. Data is arbitrary per extension point.
+export const ValueItemSchema = z.object({}).passthrough();
+export type ValueItem = z.infer<typeof ValueItemSchema>;
+
 // Extension item is either a route contribution (has `path`), a component contribution,
-// or a lifecycle-hook contribution (exportName only).
+// a lifecycle-hook contribution (exportName only), or a value contribution (arbitrary data).
 // The union is tried left-to-right: items with `path` match the route branch first.
 export const ExtensionItemSchema = z.union([
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
   LifecycleHookItemSchema,
+  ValueItemSchema,
 ]);
 
 // Describes an extension point that a library can RECEIVE contributions into.
@@ -84,6 +89,11 @@ export const ExtensionPointDescriptorSchema = z.discriminatedUnion('itemType', [
   z.object({
     itemType: z.literal('lifecycle-hook'),
     tokenExportName: z.string(),
+  }),
+  z.object({
+    itemType: z.literal('value'),
+    tokenExportName: z.string(),
+    itemTypeName: z.string().optional(),
   }),
 ]);
 export type ExtensionPointDescriptor = z.infer<
@@ -233,11 +243,21 @@ export type LifecycleHookExtPoint = {
   contributions: Array<{ item: LifecycleHookItem; importPath: string }>;
 };
 
+export type ValueExtPoint = {
+  kind: 'value';
+  name: string;
+  varName: string;
+  descriptor: Extract<ExtensionPointDescriptor, { itemType: 'value' }>;
+  consumerImportPath: string;
+  contributions: Array<{ item: ValueItem; importPath: string }>;
+};
+
 export type CollectedExtPoint =
   | RouteExtPoint
   | ComponentExtPoint
   | LazyComponentExtPoint
-  | LifecycleHookExtPoint;
+  | LifecycleHookExtPoint
+  | ValueExtPoint;
 
 // Resolved primary feature after title validation
 export type ResolvedPrimaryFeature = {

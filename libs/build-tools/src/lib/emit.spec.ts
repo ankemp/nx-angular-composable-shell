@@ -7,6 +7,7 @@ import type {
   ComponentExtPoint,
   LazyComponentExtPoint,
   LifecycleHookExtPoint,
+  ValueExtPoint,
 } from './schemas';
 
 jest.mock('fs');
@@ -447,6 +448,78 @@ describe('emitComposition', () => {
         '/my/output.ts',
         expect.any(String),
       );
+    });
+  });
+
+  describe('value extension points', () => {
+    const valueExt: ValueExtPoint = {
+      kind: 'value',
+      name: 'help-topic',
+      varName: 'extHelpTopic',
+      descriptor: {
+        itemType: 'value',
+        tokenExportName: 'HELP_TOPICS',
+      },
+      consumerImportPath: '@nacs/shell-help',
+      contributions: [
+        {
+          item: {
+            id: 'feature-a-overview',
+            title: 'Analytics Overview',
+            summary: 'Track record processing.',
+            category: 'Analytics',
+            icon: '📊',
+          },
+          importPath: '@nacs/feature-a',
+        },
+        {
+          item: {
+            id: 'feature-b-overview',
+            title: 'Messaging Basics',
+            summary: 'Send and receive messages.',
+            category: 'Communication',
+          },
+          importPath: '@nacs/feature-b',
+        },
+      ],
+    };
+
+    it('imports only the token from consumer (no feature imports)', () => {
+      emitComposition(basePrimaryFeatures, [valueExt], '/out/comp.ts');
+      expect(writtenContent).toContain('HELP_TOPICS');
+      expect(writtenContent).toContain('@nacs/shell-help');
+      // Should NOT have static imports from feature paths for value items
+      expect(writtenContent).not.toMatch(
+        /import\s*{[^}]*feature-a-overview[^}]*}/,
+      );
+    });
+
+    it('generates inline JSON data array', () => {
+      emitComposition(basePrimaryFeatures, [valueExt], '/out/comp.ts');
+      expect(writtenContent).toContain('feature-a-overview');
+      expect(writtenContent).toContain('Analytics Overview');
+      expect(writtenContent).toContain('feature-b-overview');
+      expect(writtenContent).toContain('Messaging Basics');
+    });
+
+    it('generates empty array when no contributions', () => {
+      const emptyValueExt: ValueExtPoint = {
+        ...valueExt,
+        contributions: [],
+      };
+      emitComposition(basePrimaryFeatures, [emptyValueExt], '/out/comp.ts');
+      expect(writtenContent).toMatch(/extHelpTopic\s*=\s*\[\]/);
+    });
+
+    it('includes value ext point in generatedProviders', () => {
+      emitComposition(basePrimaryFeatures, [valueExt], '/out/comp.ts');
+      expect(writtenContent).toContain('provide: HELP_TOPICS');
+      expect(writtenContent).toContain('useValue: extHelpTopic');
+    });
+
+    it('does not include multi: true for value providers', () => {
+      emitComposition(basePrimaryFeatures, [valueExt], '/out/comp.ts');
+      expect(writtenContent).not.toContain('multi: true');
     });
   });
 });

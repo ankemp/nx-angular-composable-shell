@@ -1085,6 +1085,86 @@ describe('runPrepareBuild — extension point edge cases', () => {
     expect(mockEmitComposition).toHaveBeenCalledTimes(1);
   });
 
+  it('collects value extension contributions from features', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return {
+          compilerOptions: {
+            paths: {
+              '@nacs/feature-a': ['libs/feature-a/src/index.ts'],
+              '@nacs/feature-b': ['libs/feature-b/src/index.ts'],
+              '@nacs/shell-help': ['libs/shell-help/src/index.ts'],
+            },
+          },
+        };
+      }
+      return makeClientConfig([
+        { module: '@nacs/feature-a' },
+        { module: '@nacs/feature-b' },
+      ]);
+    });
+
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-a') {
+        return {
+          name: '@nacs/feature-a',
+          'nacs-contributions': {
+            primary: { path: 'feature-a', exportName: 'R', title: 'A', icon: 'x' },
+            extensions: {
+              'help-topic': [
+                { id: 'feature-a-overview', title: 'Analytics', category: 'Analytics' },
+              ],
+            },
+          },
+        } as any;
+      }
+      return {
+        name: '@nacs/feature-b',
+        'nacs-contributions': {
+          primary: { path: 'feature-b', exportName: 'S', title: 'B', icon: 'y' },
+          extensions: {
+            'help-topic': [
+              { id: 'feature-b-overview', title: 'Messaging', category: 'Communication' },
+            ],
+          },
+        },
+      } as any;
+    });
+
+    // shell-help: always-active lib with value extension point
+    mockReadPackageJson.mockImplementation((pkgDir?: string) => {
+      if (String(pkgDir).includes('shell-help')) {
+        return {
+          name: '@nacs/shell-help',
+          'nacs-contributions': {
+            extensionPoints: {
+              'help-topic': {
+                itemType: 'value',
+                tokenExportName: 'HELP_TOPICS',
+              },
+            },
+          },
+        } as any;
+      }
+      return makeRootPkg();
+    });
+
+    mockFs.existsSync.mockReturnValue(true);
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const helpExt = collectedExtPoints.find(
+      (e: any) => e.name === 'help-topic',
+    );
+    expect(helpExt).toBeDefined();
+    expect(helpExt!.kind).toBe('value');
+    expect(helpExt!.contributions).toHaveLength(2);
+    expect(helpExt!.contributions[0].item).toMatchObject({ id: 'feature-a-overview' });
+    expect(helpExt!.contributions[1].item).toMatchObject({ id: 'feature-b-overview' });
+    expect((helpExt as any).consumerImportPath).toBe('@nacs/shell-help');
+  });
+
   it('skips always-active lib that has a primary contribution (config-driven feature)', () => {
     mockReadJsonFile.mockImplementation((filePath: string) => {
       if (filePath.includes('tsconfig.base.json')) {

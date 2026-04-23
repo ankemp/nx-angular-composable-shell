@@ -4,6 +4,7 @@ import {
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
   LifecycleHookItemSchema,
+  ValueItemSchema,
   ExtensionPointDescriptorSchema,
   NacsContributionsSchema,
   NacsPackageJsonSchema,
@@ -100,6 +101,30 @@ describe('ComponentExtensionItemSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
+// ValueItemSchema
+// ---------------------------------------------------------------------------
+describe('ValueItemSchema', () => {
+  it('accepts arbitrary JSON objects', () => {
+    const input = {
+      id: 'feature-a-overview',
+      title: 'Analytics Overview',
+      category: 'Analytics',
+      icon: '📊',
+    };
+    expect(ValueItemSchema.parse(input)).toEqual(input);
+  });
+
+  it('accepts empty object', () => {
+    expect(ValueItemSchema.parse({})).toEqual({});
+  });
+
+  it('preserves unknown fields (passthrough)', () => {
+    const input = { arbitrary: true, nested: { x: 1 }, list: [1, 2] };
+    expect(ValueItemSchema.parse(input)).toEqual(input);
+  });
+});
+
+// ---------------------------------------------------------------------------
 // LifecycleHookItemSchema
 // ---------------------------------------------------------------------------
 describe('LifecycleHookItemSchema', () => {
@@ -166,6 +191,29 @@ describe('ExtensionPointDescriptorSchema', () => {
   it('rejects lifecycle-hook missing tokenExportName', () => {
     expect(() =>
       ExtensionPointDescriptorSchema.parse({ itemType: 'lifecycle-hook' }),
+    ).toThrow();
+  });
+
+  it('accepts value itemType with required tokenExportName', () => {
+    const input = {
+      itemType: 'value',
+      tokenExportName: 'HELP_TOPICS',
+    };
+    expect(ExtensionPointDescriptorSchema.parse(input)).toEqual(input);
+  });
+
+  it('accepts value itemType with optional itemTypeName', () => {
+    const input = {
+      itemType: 'value',
+      tokenExportName: 'HELP_TOPICS',
+      itemTypeName: 'HelpTopic',
+    };
+    expect(ExtensionPointDescriptorSchema.parse(input)).toEqual(input);
+  });
+
+  it('rejects value descriptor without tokenExportName', () => {
+    expect(() =>
+      ExtensionPointDescriptorSchema.parse({ itemType: 'value' }),
     ).toThrow();
   });
 

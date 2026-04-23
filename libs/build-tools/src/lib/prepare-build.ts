@@ -13,9 +13,11 @@ import {
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
   LifecycleHookItemSchema,
+  ValueItemSchema,
   type NacsPrimaryContribution,
   type ComponentExtensionItem,
   type LifecycleHookItem,
+  type ValueItem,
   type ValidatedPrimaryContribution,
   type ExtensionPointDescriptor,
   type CollectedExtPoint,
@@ -385,6 +387,30 @@ export function runPrepareBuild(client: string, root: string): void {
       });
       collectedExtPoints.push({
         kind: 'lifecycle-hook',
+        name: extensionPointName,
+        varName,
+        descriptor,
+        consumerImportPath,
+        contributions,
+      });
+    } else if (descriptor.itemType === 'value') {
+      const contributions: Array<{
+        item: ValueItem;
+        importPath: string;
+      }> = [];
+      resolvedFeatures.forEach(({ importPath, pkg }) => {
+        const slotValue =
+          pkg['nacs-contributions']?.extensions?.[extensionPointName];
+        if (!slotValue) return;
+        (slotValue ?? []).forEach((item) =>
+          contributions.push({
+            item: ValueItemSchema.parse(item),
+            importPath,
+          }),
+        );
+      });
+      collectedExtPoints.push({
+        kind: 'value',
         name: extensionPointName,
         varName,
         descriptor,
