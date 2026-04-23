@@ -225,15 +225,15 @@ The key properties of headless features:
 
 Extension points are declared by **consumer** libs (e.g. `core-admin`, `feature-dashboard`, `shell-nav`, `shell-lifecycle`) via `nacs-contributions.extensionPoints` in their `package.json`. Each extension point has an `itemType` that controls how `prepare-build` generates code for that slot.
 
-| `itemType`       | Import emitted                                | DI provider pattern                                                      | Status         | Example use cases                                                                                     |
-| ---------------- | --------------------------------------------- | ------------------------------------------------------------------------ | -------------- | ----------------------------------------------------------------------------------------------------- |
-| `route`          | None — lazy `loadChildren` lambda             | None (consumed directly by router)                                       | ✅ Implemented | Admin panel tabs, user settings sections, onboarding wizard steps                                     |
-| `component`      | Static class import                           | `{ provide: TOKEN, useValue: [...] }`                                    | ✅ Implemented | Dashboard widgets, sidebar nav badges, contextual help panels                                         |
-| `lazy-component` | Dynamic `import()` factory (no static import) | `{ provide: TOKEN, useValue: [{ load: () => import(...) }] }`            | ✅ Implemented | Heavy chart/editor widgets, map views — split into their own chunk even when the feature is in config |
-| `lifecycle-hook` | Static function import                        | `{ provide: TOKEN, useValue: fn, multi: true }` per contributor          | ✅ Implemented | Logout cleanup, session expiry handling, tenant switch teardown                                       |
-| `multi-provider` | Static class import                           | `{ provide: TOKEN, useClass: X, multi: true }` per contributor           | 🔲 Planned     | Global search providers, telemetry adapters, notification handlers                                    |
-| `value`          | **None** — data inlined from `package.json`   | `{ provide: TOKEN, useValue: [...] }`                                    | 🔲 Planned     | Permission/capability declarations, i18n namespace registrations, feature flags                       |
-| `initializer`    | Static function import                        | `{ provide: APP_INITIALIZER, useFactory: fn, deps: [...], multi: true }` | 🔲 Planned     | Pre-fetch feature config, register service workers, warm caches before app renders                    |
+| `itemType`       | Import emitted                                | DI provider pattern                                                      | Status         | Example use cases                                                                                         |
+| ---------------- | --------------------------------------------- | ------------------------------------------------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------- |
+| `route`          | None — lazy `loadChildren` lambda             | None (consumed directly by router)                                       | ✅ Implemented | Admin panel tabs, user settings sections, onboarding wizard steps                                         |
+| `component`      | Static class import                           | `{ provide: TOKEN, useValue: [...] }`                                    | ✅ Implemented | Dashboard widgets, sidebar nav badges, contextual help panels                                             |
+| `lazy-component` | Dynamic `import()` factory (no static import) | `{ provide: TOKEN, useValue: [{ load: () => import(...) }] }`            | ✅ Implemented | Heavy chart/editor widgets, map views — split into their own chunk even when the feature is in config     |
+| `lifecycle-hook` | Static function import                        | `{ provide: TOKEN, useValue: fn, multi: true }` per contributor          | ✅ Implemented | Logout cleanup, session expiry handling, tenant switch teardown                                           |
+| `multi-provider` | Static class import                           | `{ provide: TOKEN, useClass: X, multi: true }` per contributor           | 🔲 Planned     | Global search providers, telemetry adapters, notification handlers                                        |
+| `value`          | **None** — data inlined from `package.json`   | `{ provide: TOKEN, useValue: [...] }`                                    | ✅ Implemented | Help topic registrations, permission/capability declarations, i18n namespace registrations, feature flags |
+| `initializer`    | Static function import                        | `{ provide: APP_INITIALIZER, useFactory: fn, deps: [...], multi: true }` | 🔲 Planned     | Pre-fetch feature config, register service workers, warm caches before app renders                        |
 
 **Key distinction between `component` and `multi-provider`:** `component` contributions are plain objects in an array — the shell renders them but they cannot inject other services themselves. `multi-provider` contributions are DI-resolved class instances, enabling each contributor to declare its own `deps` and participate fully in Angular's dependency injection graph.
 
@@ -303,6 +303,94 @@ npx nx run shell:prepare-build
 ```
 
 The admin tab will appear automatically in the Administration panel for any client config that includes this feature. Features that declare no `extensions.admin` entry contribute nothing to the admin panel — omission is the opt-out.
+
+### Adding a Value Contribution to a Feature
+
+Value contributions let features publish **static, structured data** declared entirely in `package.json` — no TypeScript code, no imports, and zero coupling between the contributing feature and the consuming library. The build-tools pipeline reads the JSON at build time, inlines it into the generated composition file as a typed array, and binds it to a DI token via `generatedProviders`. The consuming library injects the token to access all contributed data at runtime.
+
+**Step 1 — The consumer library declares the extension point and token:**
+
+`libs/shell-help/package.json`:
+
+```json
+{
+  "name": "@nacs/shell-help",
+  "nacs-contributions": {
+    "extensionPoints": {
+      "help-topic": {
+        "itemType": "value",
+        "tokenExportName": "HELP_TOPICS"
+      }
+    }
+  }
+}
+```
+
+The consumer lib also defines and exports the token and the item interface:
+
+```typescript
+// libs/shell-help/src/lib/help-topics.token.ts
+export interface HelpTopic {
+  id: string;
+  title: string;
+  summary: string;
+  category: string;
+  icon?: string;
+  docUrl?: string;
+}
+
+export const HELP_TOPICS = new InjectionToken<HelpTopic[]>('HELP_TOPICS', {
+  factory: () => [],
+});
+```
+
+**Step 2 — Feature libraries contribute data in their `package.json`:**
+
+No TypeScript changes are required in the contributing feature. Add the data array under `nacs-contributions.extensions.<point-name>`:
+
+`libs/feature-a/package.json`:
+
+```json
+{
+  "nacs-contributions": {
+    "primary": { ... },
+    "extensions": {
+      "help-topic": [
+        {
+          "id": "feature-a-overview",
+          "title": "Analytics Overview",
+          "summary": "Track record processing and sync status across all data pipelines.",
+          "category": "Analytics",
+          "icon": "📊"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Step 3 — Run `prepare-build`:**
+
+```sh
+npx nx run shell:prepare-build
+```
+
+The generated file will contain the inlined array bound to the token:
+
+```typescript
+import { HELP_TOPICS } from '@nacs/shell-help';
+
+export const extHelpTopic = [
+  { id: 'feature-a-overview', title: 'Analytics Overview', ... },
+];
+
+export const generatedProviders: Provider[] = [
+  // ...
+  { provide: HELP_TOPICS, useValue: extHelpTopic },
+];
+```
+
+When a feature is removed from a client config, its contributed items disappear automatically on the next `prepare-build` — no code changes required anywhere.
 
 ### Adding a Lifecycle Hook to a Feature
 
