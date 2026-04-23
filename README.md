@@ -30,20 +30,12 @@ This repo is paired with a LinkedIn article series. The five-part series will be
 
 ## How It Works
 
-NACS transforms your monorepo from a collection of libraries into a governed, scalable platform. The process "pushes the decision left" through the following steps:
+NACS transforms your monorepo from a collection of libraries into a governed, scalable platform. The process "pushes decisions left" through the following steps:
 
 1. A **client config JSON** (`configs/*.json`) declares which feature libraries to include and optionally pins each to a specific published version.
 2. A **pre-build script** reads the config, installs any versioned packages as npm aliases, then **discovers** each library's routing metadata and slot contributions from the library's own `package.json` (`nacs-contributions` field).
 3. The script generates `apps/shell/src/app/app.composition.generated.ts` — a single file containing both the top-level feature routes (`generatedRoutes`) and any extension point arrays (e.g. `extAdmin`).
-4. **Angular/esbuild** compiles the shell. Any feature not referenced in the generated routes file is fully tree-shaken from the output bundle.
-
-## High-Level Workflow
-
-1. A client config JSON is selected and parsed.
-2. The pre-build step resolves feature modules from local workspace source or a registry, then reads each library's published contribution metadata.
-3. Composition code is generated into `apps/shell/src/app/app.composition.generated.ts`.
-4. The production build compiles the shell and performs tree-shaking so only referenced features are included.
-5. The result is a custom-tailored, client-specific production bundle.
+4. **Angular/esbuild** compiles the shell. Any feature not referenced in the generated routes file is fully tree-shaken from the output bundle. The result is a custom-tailored, client-specific production bundle.
 
 ---
 
@@ -118,9 +110,11 @@ Configs live in `configs/` and follow the schema defined in `configs/client-conf
 {
   "$schema": "./client-config.schema.json",
   "clientId": "dev",
-  "features": [{ "module": "@nacs/feature-dashboard" }, { "module": "@nacs/feature-a" }, { "module": "@nacs/feature-b" }]
+  "features": [{ "module": "@nacs/feature-dashboard" }, { "module": "@nacs/feature-a" }, { "module": "@nacs/feature-b" }, { "module": "@nacs/feature-telemetry" }]
 }
 ```
+
+`@nacs/feature-telemetry` is a **headless feature** — it has no primary route, so it never appears in the sidebar. It contributes silently to the dashboard widget slot and lifecycle hook handlers. See [Headless features](#headless-features) below.
 
 **Example — production with pinned versions, a nav override, and a default route:**
 
@@ -191,15 +185,41 @@ Each feature library is **self-describing**. Instead of declaring routing metada
 }
 ```
 
-| Field                | Description                                                              |
-| -------------------- | ------------------------------------------------------------------------ |
-| `primary`            | The top-level route this feature registers in the shell navigation       |
-| `primary.path`       | Angular router path segment (lowercase, hyphens only)                    |
-| `primary.exportName` | Named export from the library's public API containing the `Routes` array |
-| `primary.title`      | Label shown in the navigation sidebar                                    |
-| `primary.icon`       | Emoji or icon identifier for the nav item                                |
-| `extensions`         | Optional map of extension points this feature contributes to             |
-| `extensions.admin`   | Contributes a child route to the built-in Administration panel           |
+| Field                | Required | Description                                                                                                                  |
+| -------------------- | -------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `primary`            | No       | The top-level route this feature registers in the shell navigation. Omit to create a [headless feature](#headless-features). |
+| `primary.path`       | —        | Angular router path segment (lowercase, hyphens only)                                                                        |
+| `primary.exportName` | —        | Named export from the library's public API containing the `Routes` array                                                     |
+| `primary.title`      | —        | Label shown in the navigation sidebar                                                                                        |
+| `primary.icon`       | —        | Emoji or icon identifier for the nav item                                                                                    |
+| `extensions`         | No       | Map of extension points this feature contributes to                                                                          |
+| `extensions.admin`   | —        | Contributes a child route to the built-in Administration panel                                                               |
+
+> Sub-fields marked `—` are required when their parent field is present.
+
+### Headless features
+
+A **headless feature** (also called a _ghost feature_) is a feature library that omits the `primary` field from its `nacs-contributions`. It has no route, no navigation entry, and no URL of its own. It exists purely to contribute to extension points declared by other libraries.
+
+```json
+{
+  "nacs-contributions": {
+    "extensions": {
+      "dashboard-widget": [{ "exportName": "TelemetryWidget", "title": "Platform Telemetry", "icon": "📡" }],
+      "lifecycle:user.logout": [{ "exportName": "telemetryLogoutHandler" }],
+      "lifecycle:session.expired": [{ "exportName": "telemetrySessionExpiredHandler" }]
+    }
+  }
+}
+```
+
+The key properties of headless features:
+
+- **No nav entry** — the sidebar is unchanged whether the feature is present or absent.
+- **Silent removal** — dropping the feature from a client config removes all its contributions (widgets, handlers, etc.) with zero code changes.
+- **Full governance** — peer dependency checks still apply; headless features are not exempt.
+
+> **Note:** A client config where _all_ features are headless is a build error. At least one feature must declare a primary route to generate valid navigation.
 
 ### Extension point types
 
@@ -217,21 +237,22 @@ Extension points are declared by **consumer** libs (e.g. `core-admin`, `feature-
 
 **Key distinction between `component` and `multi-provider`:** `component` contributions are plain objects in an array — the shell renders them but they cannot inject other services themselves. `multi-provider` contributions are DI-resolved class instances, enabling each contributor to declare its own `deps` and participate fully in Angular's dependency injection graph.
 
-**Key distinction between `lifecycle-hook` and `multi-provider`:** `lifecycle-hook` handlers are stateless functions — they cannot inject services themselves. They are called imperatively by a dispatcher at a named moment in application time (e.g. logout, session expiry). `multi-provider` contributions are DI-resolved class instances that participate fully in Angular's dependency injection graph. Use `lifecycle-hook` for fire-and-forget cleanup; use `multi-provider` when the handler needs its own dependencies.
+**Key distinction between `lifecycle-hook` and `multi-provider`:** `lifecycle-hook` handlers are stateless functions — they cannot inject services themselves. They are called imperatively by a dispatcher at a named moment in application time (e.g. logout, session expiry). Use `lifecycle-hook` for fire-and-forget cleanup; use `multi-provider` (see above) when the handler needs its own dependencies.
 
-### How extension point discovery works
+### How Extension Point Discovery Works
 
 When the pre-build script runs, it:
 
 1. Resolves each feature's `package.json` (from `node_modules` for versioned installs, from the workspace source for local)
-2. Reads `nacs-contributions.primary` to generate the top-level `generatedRoutes` array
-3. Reads `nacs-contributions.extensions.*` to generate extension point arrays (e.g. `extAdmin`) and `multi: true` providers (e.g. lifecycle-hook handlers)
+2. Enforces peer dependency governance on every feature, including headless ones
+3. Reads `nacs-contributions.primary` (if present) to generate the top-level `generatedRoutes` array — features without `primary` are skipped for route generation
+4. Reads `nacs-contributions.extensions.*` from **all** features (including headless ones) to generate extension point arrays (e.g. `extDashboardWidget`) and `multi: true` providers (e.g. lifecycle-hook handlers)
 
 All generated code is written into a single file: `apps/shell/src/app/app.composition.generated.ts`.
 
 The shell's `app.routes.ts` imports route arrays and passes them to factory functions at composition time. The shell's `app.config.ts` spreads `generatedProviders` — which includes both component/lazy-component token bindings and lifecycle-hook `multi: true` handler registrations — into the application providers.
 
-### Adding an admin extension to a feature
+### Adding an Admin Extension to a Feature
 
 **Step 1 — Create an admin component and route export in the feature library:**
 
@@ -283,7 +304,7 @@ npx nx run shell:prepare-build
 
 The admin tab will appear automatically in the Administration panel for any client config that includes this feature. Features that declare no `extensions.admin` entry contribute nothing to the admin panel — omission is the opt-out.
 
-### Adding a lifecycle hook to a feature
+### Adding a Lifecycle Hook to a Feature
 
 Lifecycle hooks let features respond to application-level events (e.g. `user.logout`, `session.expired`) without importing anything from `@nacs/shell-lifecycle`. The feature exports a plain stateless function; `prepare-build` wires it into the dispatcher via `multi: true` DI providers at build time. If the feature is absent from a client config, its handler is fully tree-shaken.
 
@@ -295,7 +316,7 @@ See [`libs/shell-lifecycle/README.md`](libs/shell-lifecycle/README.md) for the f
 
 To ensure each client build is a hermetically sealed artifact, the pre-build engine enforces strict governance. When a feature is loaded from the registry by version, the script enforces that the feature's `peerDependencies` are satisfied by the shell's installed dependencies.
 
-This prevents "Module Federation version mismatch" errors by catching framework or library version mismatches (e.g. an Angular 18 feature in an Angular 21 shell) before a bad deploy ever reaches your CI pipeline.
+This prevents "Module Federation version mismatch" errors by catching framework or library version mismatches (e.g. an Angular 18 feature in an Angular 21 shell) before a bad build ever reaches your deployment pipeline.
 
 The enforced peers are: `@angular/core`, `@angular/common`, `@angular/router`, `rxjs`.
 
@@ -318,7 +339,7 @@ This project treats each feature library as an independently versioned contract.
 
 ### Versioning & Contracts
 
-Feature libraries utilize `nx release` for independent semver versioning. This process updates the library's `package.json` and creates matching git tags, ensuring that every published version is a stable, referencable artifact.
+Feature libraries utilize `nx release` for independent semver versioning. This process updates the library's `package.json` and creates matching git tags, ensuring that every published version is a stable, referenceable artifact.
 
 ### Distribution
 

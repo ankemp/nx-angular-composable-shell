@@ -1,0 +1,29 @@
+{
+  "name": "@nacs/feature-telemetry",
+  "version": "1.0.0",
+  "peerDependencies": {
+    "@angular/core": "^21.2.0"
+  },
+  "sideEffects": false,
+  "nacs-contributions": {
+    "extensions": {
+      "dashboard-widget": [
+        {
+          "exportName": "TelemetryWidget",
+          "title": "Platform Telemetry",
+          "icon": "📡"
+        }
+      ],
+      "lifecycle:user.logout": [
+        {
+          "exportName": "telemetryLogoutHandler"
+        }
+      ],
+      "lifecycle:session.expired": [
+        {
+          "exportName": "telemetrySessionExpiredHandler"
+        }
+      ]
+    }
+  }
+}

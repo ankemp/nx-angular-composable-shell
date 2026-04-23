@@ -21,7 +21,8 @@
       "@nacs/core-admin": ["libs/core-admin/src/index.ts"],
       "@nacs/shell-nav": ["libs/shell-nav/src/index.ts"],
       "@nacs/build-tools": ["libs/build-tools/src/index.ts"],
-      "@nacs/shell-lifecycle": ["libs/shell-lifecycle/src/index.ts"]
+      "@nacs/shell-lifecycle": ["libs/shell-lifecycle/src/index.ts"],
+      "@nacs/feature-telemetry": ["libs/feature-telemetry/src/index.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"]

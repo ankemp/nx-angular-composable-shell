@@ -145,84 +145,91 @@ export function runPrepareBuild(client: string, root: string): void {
     };
   });
 
-  // Phase 1 & 2: Platform Governance + primary validation — merged into a single pass
-  const resolvedPrimaryFeatures: ResolvedPrimaryFeature[] =
-    resolvedFeatures.map(({ feature, importPath, pkg }) => {
-      // --- STRICT PEER DEPENDENCY GOVERNANCE ---
-      const peers =
-        (
-          pkg as Record<string, unknown> & {
-            peerDependencies?: Record<string, string>;
-          }
-        ).peerDependencies || {};
-      const violations: string[] = [];
+  const resolvedPrimaryFeatures: ResolvedPrimaryFeature[] = [];
 
-      for (const [dep, requiredRange] of Object.entries(peers)) {
-        const providedVersion = shellDependencies[dep];
-
-        if (!providedVersion) {
-          violations.push(
-            `  - ${dep}: Feature requires '${requiredRange}', but Shell does not provide it.`,
-          );
-          continue;
+  for (const { feature, importPath, pkg } of resolvedFeatures) {
+    // --- STRICT PEER DEPENDENCY GOVERNANCE ---
+    const peers =
+      (
+        pkg as Record<string, unknown> & {
+          peerDependencies?: Record<string, string>;
         }
+      ).peerDependencies || {};
+    const violations: string[] = [];
 
-        const cleanProvided = semver.coerce(providedVersion)?.version;
-        if (cleanProvided && !semver.satisfies(cleanProvided, requiredRange)) {
-          violations.push(
-            `  - ${dep}: Feature requires '${requiredRange}', Shell provides '${providedVersion}'`,
-          );
-        }
+    for (const [dep, requiredRange] of Object.entries(peers)) {
+      const providedVersion = shellDependencies[dep];
+
+      if (!providedVersion) {
+        violations.push(
+          `  - ${dep}: Feature requires '${requiredRange}', but Shell does not provide it.`,
+        );
+        continue;
       }
 
-      if (violations.length > 0) {
-        throw new NacsGovernanceError(
-          `\n❌ NACS GOVERNANCE FAILURE: Version mismatch in ${feature.module}${feature.version ? `@${feature.version}` : ' (Local)'}\n` +
-            `The shell's dependencies do not satisfy the feature's peer requirements:\n` +
-            violations.join('\n') +
-            `\nResolution: Update the client config to a newer feature version, or align the feature's dependencies.\n`,
+      const cleanProvided = semver.coerce(providedVersion)?.version;
+      if (cleanProvided && !semver.satisfies(cleanProvided, requiredRange)) {
+        violations.push(
+          `  - ${dep}: Feature requires '${requiredRange}', Shell provides '${providedVersion}'`,
         );
       }
-      // --- END GOVERNANCE ---
+    }
 
-      const contributions = pkg['nacs-contributions'];
+    if (violations.length > 0) {
+      throw new NacsGovernanceError(
+        `\n❌ NACS GOVERNANCE FAILURE: Version mismatch in ${feature.module}${feature.version ? `@${feature.version}` : ' (Local)'}\n` +
+          `The shell's dependencies do not satisfy the feature's peer requirements:\n` +
+          violations.join('\n') +
+          `\nResolution: Update the client config to a newer feature version, or align the feature's dependencies.\n`,
+      );
+    }
+    // --- END GOVERNANCE ---
 
-      if (!contributions?.primary) {
-        throw new BuildPreparationError(
-          `❌ Missing "nacs-contributions.primary" in package.json for: ${feature.module}\n` +
-            `   Ensure the library declares this field before publishing.`,
-        );
-      }
+    const contributions = pkg['nacs-contributions'];
 
-      // Merge client-level overrides over the discovered primary values
-      const primary: NacsPrimaryContribution = {
-        ...contributions.primary,
-        ...feature.overrides,
-      };
+    // Headless features contribute only extensions — no primary route
+    if (!contributions?.primary) {
+      console.log(`🔗 Headless feature (no primary route): ${feature.module}`);
+      continue;
+    }
 
-      if (!primary.title) {
-        throw new BuildPreparationError(
-          `❌ Missing "title" in nacs-contributions.primary for: ${feature.module}\n` +
-            `   Ensure the library declares a "title" field in its nacs-contributions.`,
-        );
-      }
+    // Merge client-level overrides over the discovered primary values
+    const primary: NacsPrimaryContribution = {
+      ...contributions.primary,
+      ...feature.overrides,
+    };
 
-      if (feature.version) {
-        // Version defined: installed above as an alias.
-        // The .npmrc routes @nacs/* to Verdaccio/Nexus automatically.
-        console.log(
-          `🔗 Using registry v${feature.version} for: ${feature.module} (as ${importPath})`,
-        );
-      } else {
-        // No version defined: use local workspace path
-        console.log(`🔗 Using local workspace source for: ${feature.module}`);
-      }
+    if (!primary.title) {
+      throw new BuildPreparationError(
+        `❌ Missing "title" in nacs-contributions.primary for: ${feature.module}\n` +
+          `   Ensure the library declares a "title" field in its nacs-contributions.`,
+      );
+    }
 
-      return {
-        importPath,
-        primary: primary as ValidatedPrimaryContribution,
-      };
+    if (feature.version) {
+      // Version defined: installed above as an alias.
+      // The .npmrc routes @nacs/* to Verdaccio/Nexus automatically.
+      console.log(
+        `🔗 Using registry v${feature.version} for: ${feature.module} (as ${importPath})`,
+      );
+    } else {
+      // No version defined: use local workspace path
+      console.log(`🔗 Using local workspace source for: ${feature.module}`);
+    }
+
+    resolvedPrimaryFeatures.push({
+      importPath,
+      primary: primary as ValidatedPrimaryContribution,
     });
+  }
+
+  if (resolvedPrimaryFeatures.length === 0) {
+    throw new BuildPreparationError(
+      `❌ At least one feature must declare a primary route.\n` +
+        `   All features in the client config are headless (no "nacs-contributions.primary").\n` +
+        `   Add at least one feature with a primary route to generate valid navigation.`,
+    );
+  }
 
   // --- Extension point discovery ---
 
@@ -285,9 +292,6 @@ export function runPrepareBuild(client: string, root: string): void {
   }
 
   // --- Collect all extension point data before emitting ---
-  // Two-phase approach: collect first, emit second.
-  // This allows ts-morph to emit imports in declaration order at the top of the file.
-
   const collectedExtPoints: CollectedExtPoint[] = [];
 
   for (const [
@@ -430,10 +434,19 @@ export function runPrepareBuild(client: string, root: string): void {
           `   Must match one of the declared feature modules: ${knownModules.join(', ')}`,
       );
     }
-    const featureIndex = config.features.findIndex(
-      (f) => f.module === config.defaultRoute,
+    const targetImportPath = resolvedFeatures.find(
+      ({ feature }) => feature.module === config.defaultRoute,
+    )?.importPath;
+    const primaryFeature = resolvedPrimaryFeatures.find(
+      ({ importPath }) => importPath === targetImportPath,
     );
-    resolvedDefaultRoute = resolvedPrimaryFeatures[featureIndex].primary.path;
+    if (!primaryFeature) {
+      throw new BuildPreparationError(
+        `❌ "defaultRoute" "${config.defaultRoute}" is a headless feature with no primary route.\n` +
+          `   Only features with a primary route can be used as the default route.`,
+      );
+    }
+    resolvedDefaultRoute = primaryFeature.primary.path;
   }
 
   // --- Emit ---

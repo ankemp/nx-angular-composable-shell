@@ -305,7 +305,7 @@ describe('runPrepareBuild — governance', () => {
 // Validation errors
 // ---------------------------------------------------------------------------
 describe('runPrepareBuild — validation', () => {
-  it('throws when feature is missing nacs-contributions.primary', () => {
+  it('throws BuildPreparationError when all features are headless (no primary)', () => {
     mockReadJsonFile.mockImplementation((filePath: string) => {
       if (filePath.includes('tsconfig.base.json')) {
         return { compilerOptions: { paths: {} } };
@@ -339,6 +339,174 @@ describe('runPrepareBuild — validation', () => {
     } as any);
 
     expect(() => runPrepareBuild('test', ROOT)).toThrow(BuildPreparationError);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Headless features (no primary route)
+// ---------------------------------------------------------------------------
+describe('runPrepareBuild — headless features', () => {
+  it('succeeds when a feature has no primary (headless feature alongside a primary feature)', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return { compilerOptions: { paths: {} } };
+      }
+      return makeClientConfig([
+        { module: '@nacs/feature-a' },
+        { module: '@nacs/feature-telemetry' },
+      ]);
+    });
+
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-a') {
+        return makeFeaturePkg('@nacs/feature-a', {
+          path: 'feature-a',
+          exportName: 'R',
+          title: 'A',
+          icon: 'x',
+        }) as ReturnType<typeof resolvePackageJson>;
+      }
+      // Headless feature — no primary
+      return {
+        name: '@nacs/feature-telemetry',
+        'nacs-contributions': {
+          extensions: {
+            'dashboard-widget': [{ exportName: 'TelemetryWidget' }],
+          },
+        },
+      } as any;
+    });
+
+    expect(() => runPrepareBuild('test', ROOT)).not.toThrow();
+
+    const [primaryFeatures] = mockEmitComposition.mock.calls[0];
+    expect(primaryFeatures).toHaveLength(1);
+    expect(primaryFeatures[0].primary.title).toBe('A');
+    // Headless feature must not appear in generatedRoutes
+    expect(
+      primaryFeatures.some(
+        (f: any) => f.importPath === '@nacs/feature-telemetry',
+      ),
+    ).toBe(false);
+  });
+
+  it('still collects extensions from headless features', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return {
+          compilerOptions: {
+            paths: {
+              '@nacs/feature-a': ['libs/feature-a/src/index.ts'],
+              '@nacs/feature-telemetry': [
+                'libs/feature-telemetry/src/index.ts',
+              ],
+              '@nacs/feature-dashboard': [
+                'libs/feature-dashboard/src/index.ts',
+              ],
+            },
+          },
+        };
+      }
+      return makeClientConfig([
+        { module: '@nacs/feature-dashboard' },
+        { module: '@nacs/feature-a' },
+        { module: '@nacs/feature-telemetry' },
+      ]);
+    });
+
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-dashboard') {
+        return {
+          name: '@nacs/feature-dashboard',
+          'nacs-contributions': {
+            primary: {
+              path: 'dashboard',
+              exportName: 'D',
+              title: 'Dashboard',
+              icon: 'd',
+            },
+            extensionPoints: {
+              'dashboard-widget': {
+                itemType: 'lazy-component',
+                tokenExportName: 'DASHBOARD_WIDGETS',
+              },
+            },
+          },
+        } as any;
+      }
+      if (module === '@nacs/feature-a') {
+        return makeFeaturePkg('@nacs/feature-a', {
+          path: 'feature-a',
+          exportName: 'R',
+          title: 'A',
+          icon: 'x',
+        }) as ReturnType<typeof resolvePackageJson>;
+      }
+      // Headless feature
+      return {
+        name: '@nacs/feature-telemetry',
+        'nacs-contributions': {
+          extensions: {
+            'dashboard-widget': [
+              { exportName: 'TelemetryWidget', title: 'Telemetry', icon: '📡' },
+            ],
+          },
+        },
+      } as any;
+    });
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const widgetExt = collectedExtPoints.find(
+      (e: any) => e.name === 'dashboard-widget',
+    );
+    expect(widgetExt).toBeDefined();
+    expect(
+      widgetExt!.contributions.some(
+        (c: any) => c.item.exportName === 'TelemetryWidget',
+      ),
+    ).toBe(true);
+  });
+
+  it('still enforces peer governance on headless features', () => {
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return { compilerOptions: { paths: {} } };
+      }
+      return makeClientConfig([
+        { module: '@nacs/feature-a' },
+        { module: '@nacs/feature-telemetry' },
+      ]);
+    });
+    mockReadPackageJson.mockReturnValue(
+      makeRootPkg({ '@angular/core': '~21.2.0' }),
+    );
+
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-a') {
+        return makeFeaturePkg('@nacs/feature-a', {
+          path: 'feature-a',
+          exportName: 'R',
+          title: 'A',
+          icon: 'x',
+        }) as ReturnType<typeof resolvePackageJson>;
+      }
+      // Headless feature with bad peer deps
+      return {
+        name: '@nacs/feature-telemetry',
+        'nacs-contributions': {
+          extensions: {
+            'dashboard-widget': [{ exportName: 'TelemetryWidget' }],
+          },
+        },
+        peerDependencies: {
+          '@angular/core': '>=22.0.0',
+        },
+      } as any;
+    });
+
+    expect(() => runPrepareBuild('test', ROOT)).toThrow(NacsGovernanceError);
   });
 });
 
@@ -1109,10 +1277,19 @@ describe('runPrepareBuild — extension point edge cases', () => {
         return {
           name: '@nacs/feature-a',
           'nacs-contributions': {
-            primary: { path: 'feature-a', exportName: 'R', title: 'A', icon: 'x' },
+            primary: {
+              path: 'feature-a',
+              exportName: 'R',
+              title: 'A',
+              icon: 'x',
+            },
             extensions: {
               'help-topic': [
-                { id: 'feature-a-overview', title: 'Analytics', category: 'Analytics' },
+                {
+                  id: 'feature-a-overview',
+                  title: 'Analytics',
+                  category: 'Analytics',
+                },
               ],
             },
           },
@@ -1121,10 +1298,19 @@ describe('runPrepareBuild — extension point edge cases', () => {
       return {
         name: '@nacs/feature-b',
         'nacs-contributions': {
-          primary: { path: 'feature-b', exportName: 'S', title: 'B', icon: 'y' },
+          primary: {
+            path: 'feature-b',
+            exportName: 'S',
+            title: 'B',
+            icon: 'y',
+          },
           extensions: {
             'help-topic': [
-              { id: 'feature-b-overview', title: 'Messaging', category: 'Communication' },
+              {
+                id: 'feature-b-overview',
+                title: 'Messaging',
+                category: 'Communication',
+              },
             ],
           },
         },
@@ -1160,8 +1346,12 @@ describe('runPrepareBuild — extension point edge cases', () => {
     expect(helpExt).toBeDefined();
     expect(helpExt!.kind).toBe('value');
     expect(helpExt!.contributions).toHaveLength(2);
-    expect(helpExt!.contributions[0].item).toMatchObject({ id: 'feature-a-overview' });
-    expect(helpExt!.contributions[1].item).toMatchObject({ id: 'feature-b-overview' });
+    expect(helpExt!.contributions[0].item).toMatchObject({
+      id: 'feature-a-overview',
+    });
+    expect(helpExt!.contributions[1].item).toMatchObject({
+      id: 'feature-b-overview',
+    });
     expect((helpExt as any).consumerImportPath).toBe('@nacs/shell-help');
   });
 

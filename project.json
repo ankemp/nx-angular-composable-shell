@@ -4,8 +4,12 @@
   "targets": {
     "sync-schema": {
       "executor": "@nacs/build-tools:sync-schema",
-      "inputs": ["{workspaceRoot}/libs/**/package.json"],
-      "outputs": ["{workspaceRoot}/libs/build-tools/nacs-package.schema.json"]
+      "inputs": [
+        "{workspaceRoot}/libs/**/package.json"
+      ],
+      "outputs": [
+        "{workspaceRoot}/libs/build-tools/nacs-package.schema.json"
+      ]
     },
     "local-registry": {
       "executor": "@nx/js:verdaccio",

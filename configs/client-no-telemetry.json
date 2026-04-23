@@ -1,10 +1,9 @@
 {
   "$schema": "./client-config.schema.json",
-  "clientId": "dev",
+  "clientId": "client-no-telemetry",
   "features": [
     { "module": "@nacs/feature-dashboard" },
     { "module": "@nacs/feature-a" },
-    { "module": "@nacs/feature-b" },
-    { "module": "@nacs/feature-telemetry" }
+    { "module": "@nacs/feature-b" }
   ]
 }

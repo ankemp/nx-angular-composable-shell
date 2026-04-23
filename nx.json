@@ -68,7 +68,12 @@
   },
   "neverConnectToCloud": true,
   "release": {
-    "projects": ["feature-a", "feature-b", "feature-dashboard"],
+    "projects": [
+      "feature-a",
+      "feature-b",
+      "feature-dashboard",
+      "feature-telemetry"
+    ],
     "projectsRelationship": "independent",
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
