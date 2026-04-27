@@ -52,16 +52,27 @@ export const LifecycleHookItemSchema = z.object({
 });
 export type LifecycleHookItem = z.infer<typeof LifecycleHookItemSchema>;
 
+// A single item contributed to an initializer extension point.
+// The function is imported statically and registered via provideAppInitializer().
+// It runs in an injection context, so use inject() inside the function body for
+// any dependencies — no deps array needed.
+export const InitializerItemSchema = z.object({
+  exportName: z.string(),
+});
+export type InitializerItem = z.infer<typeof InitializerItemSchema>;
+
 // A single item contributed to a value extension point. Data is arbitrary per extension point.
 export const ValueItemSchema = z.object({}).passthrough();
 export type ValueItem = z.infer<typeof ValueItemSchema>;
 
 // Extension item is either a route contribution (has `path`), a component contribution,
-// a lifecycle-hook contribution (exportName only), or a value contribution (arbitrary data).
+// an initializer contribution (has exportName + optional deps), a lifecycle-hook
+// contribution (exportName only), or a value contribution (arbitrary data).
 // The union is tried left-to-right: items with `path` match the route branch first.
 export const ExtensionItemSchema = z.union([
   NacsPrimaryContributionSchema,
   ComponentExtensionItemSchema,
+  InitializerItemSchema,
   LifecycleHookItemSchema,
   ValueItemSchema,
 ]);
@@ -94,6 +105,9 @@ export const ExtensionPointDescriptorSchema = z.discriminatedUnion('itemType', [
     itemType: z.literal('value'),
     tokenExportName: z.string(),
     itemTypeName: z.string().optional(),
+  }),
+  z.object({
+    itemType: z.literal('initializer'),
   }),
 ]);
 export type ExtensionPointDescriptor = z.infer<
@@ -252,12 +266,22 @@ export type ValueExtPoint = {
   contributions: Array<{ item: ValueItem; importPath: string }>;
 };
 
+export type InitializerExtPoint = {
+  kind: 'initializer';
+  name: string;
+  varName: string;
+  descriptor: Extract<ExtensionPointDescriptor, { itemType: 'initializer' }>;
+  consumerImportPath: string;
+  contributions: Array<{ item: InitializerItem; importPath: string }>;
+};
+
 export type CollectedExtPoint =
   | RouteExtPoint
   | ComponentExtPoint
   | LazyComponentExtPoint
   | LifecycleHookExtPoint
-  | ValueExtPoint;
+  | ValueExtPoint
+  | InitializerExtPoint;
 
 // Resolved primary feature after title validation
 export type ResolvedPrimaryFeature = {

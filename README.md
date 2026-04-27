@@ -233,7 +233,7 @@ Extension points are declared by **consumer** libs (e.g. `core-admin`, `feature-
 | `lifecycle-hook` | Static function import                        | `{ provide: TOKEN, useValue: fn, multi: true }` per contributor          | ✅ Implemented | Logout cleanup, session expiry handling, tenant switch teardown                                           |
 | `multi-provider` | Static class import                           | `{ provide: TOKEN, useClass: X, multi: true }` per contributor           | 🔲 Planned     | Global search providers, telemetry adapters, notification handlers                                        |
 | `value`          | **None** — data inlined from `package.json`   | `{ provide: TOKEN, useValue: [...] }`                                    | ✅ Implemented | Help topic registrations, permission/capability declarations, i18n namespace registrations, feature flags |
-| `initializer`    | Static function import                        | `{ provide: APP_INITIALIZER, useFactory: fn, deps: [...], multi: true }` | 🔲 Planned     | Pre-fetch feature config, register service workers, warm caches before app renders                        |
+| `initializer`    | Static function import                        | `{ provide: APP_INITIALIZER, useFactory: fn, deps: [...], multi: true }` | ✅ Implemented | Pre-fetch feature config, register service workers, warm caches before app renders                        |
 
 **Key distinction between `component` and `multi-provider`:** `component` contributions are plain objects in an array — the shell renders them but they cannot inject other services themselves. `multi-provider` contributions are DI-resolved class instances, enabling each contributor to declare its own `deps` and participate fully in Angular's dependency injection graph.
 
@@ -250,7 +250,7 @@ When the pre-build script runs, it:
 
 All generated code is written into a single file: `apps/shell/src/app/app.composition.generated.ts`.
 
-The shell's `app.routes.ts` imports route arrays and passes them to factory functions at composition time. The shell's `app.config.ts` spreads `generatedProviders` — which includes both component/lazy-component token bindings and lifecycle-hook `multi: true` handler registrations — into the application providers.
+The shell's `app.routes.ts` imports route arrays and passes them to factory functions at composition time. The shell's `app.config.ts` spreads `generatedProviders` — which includes component/lazy-component token bindings, lifecycle-hook `multi: true` handler registrations, and `APP_INITIALIZER` factory registrations — into the application providers.
 
 ### Adding an Admin Extension to a Feature
 
@@ -397,6 +397,82 @@ When a feature is removed from a client config, its contributed items disappear 
 Lifecycle hooks let features respond to application-level events (e.g. `user.logout`, `session.expired`) without importing anything from `@nacs/shell-lifecycle`. The feature exports a plain stateless function; `prepare-build` wires it into the dispatcher via `multi: true` DI providers at build time. If the feature is absent from a client config, its handler is fully tree-shaken.
 
 See [`libs/shell-lifecycle/README.md`](libs/shell-lifecycle/README.md) for the full how-to, available events, and guidance on when to use a lifecycle hook versus a `multi-provider` contribution.
+
+### Adding an Initializer to a Feature
+
+Initializers let features run asynchronous startup logic before the Angular application fully bootstraps — pre-fetching remote config, registering service workers, warming caches, or seeding local storage. The feature exports a plain async function; `prepare-build` wires it into Angular's `provideAppInitializer()` at build time. Angular awaits all registered initializers before rendering the first view.
+
+Because `provideAppInitializer()` runs its function in an **injection context**, the function can call `inject()` directly inside its body — no `deps` array is needed.
+
+> **Built-in slot** — the `nacs:app-initializer` extension point is automatically registered by `prepare-build` on every build. No consumer library needs to declare it. Any feature that wants to run startup logic simply contributes to this canonical key.
+
+**Step 1 — Export the initializer function from the feature library:**
+
+`libs/my-feature/src/lib/my-feature.initializer.ts`:
+
+```typescript
+import { inject } from '@angular/core';
+import { HttpClient } from '@angular/common/http';
+import { firstValueFrom } from 'rxjs';
+
+export function myFeatureInitializer(): Promise<void> {
+  const http = inject(HttpClient); // inject() works here — runs in injection context
+  return firstValueFrom(http.get<void>('/api/my-feature/config'));
+}
+```
+
+For a zero-dependency initializer, omit `inject()` and return a resolved promise:
+
+```typescript
+export function myFeatureInitializer(): Promise<void> {
+  return Promise.resolve();
+}
+```
+
+Re-export from the library's public API (`src/index.ts`):
+
+```typescript
+export * from './lib/my-feature.initializer';
+```
+
+**Step 2 — Declare the contribution in the feature's `package.json`:**
+
+Contribute to the built-in `nacs:app-initializer` key. Only `exportName` is required — there is no `deps` field.
+
+```json
+{
+  "nacs-contributions": {
+    "primary": { ... },
+    "extensions": {
+      "nacs:app-initializer": [
+        {
+          "exportName": "myFeatureInitializer"
+        }
+      ]
+    }
+  }
+}
+```
+
+**Step 3 — Run `prepare-build`:**
+
+```sh
+npx nx run shell:prepare-build
+```
+
+The generated file will contain a static import of the function and a `provideAppInitializer()` call in `generatedProviders`:
+
+```typescript
+import { type Provider, type EnvironmentProviders, provideAppInitializer } from '@angular/core';
+import { myFeatureInitializer } from '@nacs/my-feature';
+
+export const generatedProviders: (Provider | EnvironmentProviders)[] = [
+  // ...
+  provideAppInitializer(myFeatureInitializer),
+];
+```
+
+When a feature is removed from a client config, its initializer disappears automatically on the next `prepare-build` — no code changes required anywhere.
 
 ---
 

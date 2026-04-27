@@ -28,6 +28,11 @@
           "title": "Feature B Summary",
           "icon": "💬"
         }
+      ],
+      "nacs:app-initializer": [
+        {
+          "exportName": "featureBInitializer"
+        }
       ]
     }
   }

@@ -8,6 +8,7 @@ import type {
   LazyComponentExtPoint,
   LifecycleHookExtPoint,
   ValueExtPoint,
+  InitializerExtPoint,
 } from './schemas';
 
 jest.mock('fs');
@@ -349,9 +350,8 @@ describe('emitComposition', () => {
   describe('generatedProviders', () => {
     it('always exports generatedProviders array', () => {
       emitComposition(basePrimaryFeatures, [], '/out/comp.ts');
-      expect(writtenContent).toContain(
-        'export const generatedProviders: Provider[]',
-      );
+      expect(writtenContent).toContain('export const generatedProviders:');
+      expect(writtenContent).toContain('generatedProviders: Provider[]');
     });
 
     it('includes provide/useValue for component ext points', () => {
@@ -520,6 +520,99 @@ describe('emitComposition', () => {
     it('does not include multi: true for value providers', () => {
       emitComposition(basePrimaryFeatures, [valueExt], '/out/comp.ts');
       expect(writtenContent).not.toContain('multi: true');
+    });
+  });
+
+  describe('initializer extension points', () => {
+    const initializerExt: InitializerExtPoint = {
+      kind: 'initializer',
+      name: 'nacs:app-initializer',
+      varName: 'extNacsAppInitializer',
+      descriptor: { itemType: 'initializer' },
+      consumerImportPath: '', // built-in — no consumer lib required
+      contributions: [
+        {
+          item: { exportName: 'featureAInitializer' },
+          importPath: '@nacs/feature-a',
+        },
+      ],
+    };
+
+    it('imports provideAppInitializer and EnvironmentProviders from @angular/core when there are contributions', () => {
+      emitComposition(basePrimaryFeatures, [initializerExt], '/out/comp.ts');
+      expect(writtenContent).toContain('provideAppInitializer');
+      expect(writtenContent).toContain('EnvironmentProviders');
+      expect(writtenContent).toContain('@angular/core');
+    });
+
+    it('does NOT import provideAppInitializer or widen type when there are no contributions', () => {
+      const emptyInit: InitializerExtPoint = {
+        ...initializerExt,
+        contributions: [],
+      };
+      emitComposition(basePrimaryFeatures, [emptyInit], '/out/comp.ts');
+      expect(writtenContent).not.toContain('provideAppInitializer');
+      // EnvironmentProviders must not appear in imports — it may still appear in
+      // the type annotation only if there are contributions; empty = no widening
+      expect(writtenContent).not.toMatch(/import[^;]*EnvironmentProviders/);
+      expect(writtenContent).toContain('generatedProviders: Provider[]');
+    });
+
+    it('imports each contributed function statically', () => {
+      emitComposition(basePrimaryFeatures, [initializerExt], '/out/comp.ts');
+      expect(writtenContent).toContain('featureAInitializer');
+      expect(writtenContent).toContain('@nacs/feature-a');
+    });
+
+    it('does NOT emit a separate const variable for initializers', () => {
+      emitComposition(basePrimaryFeatures, [initializerExt], '/out/comp.ts');
+      expect(writtenContent).not.toContain(
+        'export const extNacsAppInitializer',
+      );
+    });
+
+    it('generates provideAppInitializer(fn) call in generatedProviders', () => {
+      emitComposition(basePrimaryFeatures, [initializerExt], '/out/comp.ts');
+      expect(writtenContent).toContain(
+        'provideAppInitializer(featureAInitializer)',
+      );
+    });
+
+    it('widens generatedProviders type to include EnvironmentProviders', () => {
+      emitComposition(basePrimaryFeatures, [initializerExt], '/out/comp.ts');
+      expect(writtenContent).toContain('(Provider | EnvironmentProviders)[]');
+    });
+
+    it('generates multiple provideAppInitializer calls from multiple contributions', () => {
+      const multiInit: InitializerExtPoint = {
+        ...initializerExt,
+        contributions: [
+          {
+            item: { exportName: 'featureAInitializer' },
+            importPath: '@nacs/feature-a',
+          },
+          {
+            item: { exportName: 'featureBInitializer' },
+            importPath: '@nacs/feature-b',
+          },
+        ],
+      };
+      emitComposition(basePrimaryFeatures, [multiInit], '/out/comp.ts');
+      expect(writtenContent).toContain(
+        'provideAppInitializer(featureAInitializer)',
+      );
+      expect(writtenContent).toContain(
+        'provideAppInitializer(featureBInitializer)',
+      );
+    });
+
+    it('generates no provider entries when no contributions', () => {
+      const emptyInit: InitializerExtPoint = {
+        ...initializerExt,
+        contributions: [],
+      };
+      emitComposition(basePrimaryFeatures, [emptyInit], '/out/comp.ts');
+      expect(writtenContent).not.toContain('provideAppInitializer');
     });
   });
 });

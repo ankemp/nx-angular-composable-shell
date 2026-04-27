@@ -5,6 +5,7 @@ import {
   ComponentExtensionItemSchema,
   LifecycleHookItemSchema,
   ValueItemSchema,
+  InitializerItemSchema,
   ExtensionPointDescriptorSchema,
   NacsContributionsSchema,
   NacsPackageJsonSchema,
@@ -125,6 +126,33 @@ describe('ValueItemSchema', () => {
 });
 
 // ---------------------------------------------------------------------------
+// InitializerItemSchema
+// ---------------------------------------------------------------------------
+describe('InitializerItemSchema', () => {
+  it('accepts input with exportName only', () => {
+    const input = { exportName: 'myInitializer' };
+    expect(InitializerItemSchema.parse(input)).toEqual(input);
+  });
+
+  it('rejects missing exportName', () => {
+    expect(() => InitializerItemSchema.parse({})).toThrow();
+  });
+
+  it('rejects non-string exportName', () => {
+    expect(() => InitializerItemSchema.parse({ exportName: 42 })).toThrow();
+  });
+
+  it('strips unknown fields (deps removed — use inject() inside function body)', () => {
+    // deps were removed: provideAppInitializer runs the function in injection context
+    const result = InitializerItemSchema.parse({
+      exportName: 'fn',
+      deps: ['HttpClient'],
+    });
+    expect(result).toEqual({ exportName: 'fn' });
+  });
+});
+
+// ---------------------------------------------------------------------------
 // LifecycleHookItemSchema
 // ---------------------------------------------------------------------------
 describe('LifecycleHookItemSchema', () => {
@@ -215,6 +243,11 @@ describe('ExtensionPointDescriptorSchema', () => {
     expect(() =>
       ExtensionPointDescriptorSchema.parse({ itemType: 'value' }),
     ).toThrow();
+  });
+
+  it('accepts initializer itemType with no extra fields required', () => {
+    const input = { itemType: 'initializer' };
+    expect(ExtensionPointDescriptorSchema.parse(input)).toEqual(input);
   });
 
   it('rejects unknown itemType', () => {

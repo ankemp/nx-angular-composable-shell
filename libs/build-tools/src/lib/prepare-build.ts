@@ -14,10 +14,12 @@ import {
   ComponentExtensionItemSchema,
   LifecycleHookItemSchema,
   ValueItemSchema,
+  InitializerItemSchema,
   type NacsPrimaryContribution,
   type ComponentExtensionItem,
   type LifecycleHookItem,
   type ValueItem,
+  type InitializerItem,
   type ValidatedPrimaryContribution,
   type ExtensionPointDescriptor,
   type CollectedExtPoint,
@@ -291,6 +293,17 @@ export function runPrepareBuild(client: string, root: string): void {
     }
   }
 
+  // 1c. Built-in: app initializers are always collected under the canonical key
+  // 'nacs:app-initializer'. No consumer lib declaration is required — the consumer
+  // is Angular's own bootstrap mechanism (app.config.ts providers array).
+  const BUILTIN_APP_INIT = 'nacs:app-initializer';
+  if (!activeExtensionPoints.has(BUILTIN_APP_INIT)) {
+    activeExtensionPoints.set(BUILTIN_APP_INIT, {
+      descriptor: { itemType: 'initializer' },
+      consumerImportPath: '', // built-in — no consumer lib import
+    });
+  }
+
   // --- Collect all extension point data before emitting ---
   const collectedExtPoints: CollectedExtPoint[] = [];
 
@@ -415,6 +428,30 @@ export function runPrepareBuild(client: string, root: string): void {
       });
       collectedExtPoints.push({
         kind: 'value',
+        name: extensionPointName,
+        varName,
+        descriptor,
+        consumerImportPath,
+        contributions,
+      });
+    } else if (descriptor.itemType === 'initializer') {
+      const contributions: Array<{
+        item: InitializerItem;
+        importPath: string;
+      }> = [];
+      resolvedFeatures.forEach(({ importPath, pkg }) => {
+        const slotValue =
+          pkg['nacs-contributions']?.extensions?.[extensionPointName];
+        if (!slotValue) return;
+        (slotValue ?? []).forEach((item) =>
+          contributions.push({
+            item: InitializerItemSchema.parse(item),
+            importPath,
+          }),
+        );
+      });
+      collectedExtPoints.push({
+        kind: 'initializer',
         name: extensionPointName,
         varName,
         descriptor,

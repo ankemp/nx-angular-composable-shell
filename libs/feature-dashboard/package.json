@@ -19,6 +19,13 @@
         "tokenExportName": "DASHBOARD_WIDGETS",
         "itemType": "lazy-component"
       }
+    },
+    "extensions": {
+      "nacs:app-initializer": [
+        {
+          "exportName": "featureDashboardInitializer"
+        }
+      ]
     }
   }
 }

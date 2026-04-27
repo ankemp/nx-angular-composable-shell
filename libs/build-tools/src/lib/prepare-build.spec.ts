@@ -1399,8 +1399,103 @@ describe('runPrepareBuild — extension point edge cases', () => {
 
     runPrepareBuild('test', ROOT);
 
-    // feature-b should have been skipped — its ext points (none here) should not be added
+    // feature-b should have been skipped — its ext points (none here) should not be added.
+    // The only ext point present is the always-registered built-in nacs:app-initializer.
     const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
-    expect(collectedExtPoints).toHaveLength(0);
+    expect(collectedExtPoints).toHaveLength(1);
+    expect(collectedExtPoints[0].name).toBe('nacs:app-initializer');
+  });
+
+  it('collects nacs:app-initializer contributions as a built-in (no consumer lib required)', () => {
+    // No consumer lib declares 'nacs:app-initializer' — it is always registered by prepare-build.
+    // Features contribute to it using the canonical key 'nacs:app-initializer'.
+    mockReadJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes('tsconfig.base.json')) {
+        return {
+          compilerOptions: {
+            paths: {
+              '@nacs/feature-a': ['libs/feature-a/src/index.ts'],
+              '@nacs/feature-b': ['libs/feature-b/src/index.ts'],
+            },
+          },
+        };
+      }
+      return makeClientConfig([
+        { module: '@nacs/feature-a' },
+        { module: '@nacs/feature-b' },
+      ]);
+    });
+
+    mockResolvePackageJson.mockImplementation((module: string) => {
+      if (module === '@nacs/feature-a') {
+        return {
+          name: '@nacs/feature-a',
+          'nacs-contributions': {
+            primary: {
+              path: 'feature-a',
+              exportName: 'R',
+              title: 'A',
+              icon: 'x',
+            },
+            extensions: {
+              'nacs:app-initializer': [{ exportName: 'featureAInitializer' }],
+            },
+          },
+        } as any;
+      }
+      return {
+        name: '@nacs/feature-b',
+        'nacs-contributions': {
+          primary: {
+            path: 'feature-b',
+            exportName: 'S',
+            title: 'B',
+            icon: 'y',
+          },
+          extensions: {
+            'nacs:app-initializer': [{ exportName: 'featureBInitializer' }],
+          },
+        },
+      } as any;
+    });
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const initExt = collectedExtPoints.find(
+      (e: any) => e.name === 'nacs:app-initializer',
+    );
+    expect(initExt).toBeDefined();
+    expect(initExt!.kind).toBe('initializer');
+    expect(initExt!.contributions).toHaveLength(2);
+    expect(initExt!.contributions[0].item.exportName).toBe(
+      'featureAInitializer',
+    );
+    expect(initExt!.contributions[1].item.exportName).toBe(
+      'featureBInitializer',
+    );
+    expect(initExt!.contributions[0].importPath).toBe('@nacs/feature-a');
+    expect(initExt!.contributions[1].importPath).toBe('@nacs/feature-b');
+  });
+
+  it('always registers nacs:app-initializer built-in even when no feature contributes to it', () => {
+    mockResolvePackageJson.mockReturnValue(
+      makeFeaturePkg('@nacs/feature-a', {
+        path: 'feature-a',
+        exportName: 'R',
+        title: 'A',
+        icon: 'x',
+      }) as ReturnType<typeof resolvePackageJson>,
+    );
+
+    runPrepareBuild('test', ROOT);
+
+    const [, collectedExtPoints] = mockEmitComposition.mock.calls[0];
+    const initExt = collectedExtPoints.find(
+      (e: any) => e.name === 'nacs:app-initializer',
+    );
+    expect(initExt).toBeDefined();
+    expect(initExt!.kind).toBe('initializer');
+    expect(initExt!.contributions).toHaveLength(0);
   });
 });

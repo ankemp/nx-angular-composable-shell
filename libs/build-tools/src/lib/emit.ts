@@ -11,6 +11,7 @@ import type {
   LazyComponentExtPoint,
   LifecycleHookExtPoint,
   ValueExtPoint,
+  InitializerExtPoint,
   ResolvedPrimaryFeature,
 } from './schemas';
 
@@ -61,9 +62,20 @@ export function emitComposition(
     moduleSpecifier: '@angular/router',
     namedImports: ['Routes'],
   });
+  const hasInitializers = collectedExtPoints.some(
+    (ext) => ext.kind === 'initializer' && ext.contributions.length > 0,
+  );
   src.addImportDeclaration({
     moduleSpecifier: '@angular/core',
-    namedImports: [{ name: 'Provider', isTypeOnly: true }],
+    namedImports: [
+      { name: 'Provider', isTypeOnly: true },
+      ...(hasInitializers
+        ? [
+            { name: 'EnvironmentProviders', isTypeOnly: true },
+            { name: 'provideAppInitializer' },
+          ]
+        : []),
+    ],
   });
 
   // Extension point imports — emitted in declaration order; no string.replace needed
@@ -108,6 +120,14 @@ export function emitComposition(
         moduleSpecifier: ext.consumerImportPath,
         namedImports: [ext.descriptor.tokenExportName],
       });
+    } else if (ext.kind === 'initializer') {
+      // Import each contributed factory function statically
+      for (const { item, importPath } of ext.contributions) {
+        src.addImportDeclaration({
+          moduleSpecifier: importPath,
+          namedImports: [item.exportName],
+        });
+      }
     }
   }
 
@@ -270,17 +290,21 @@ export function emitComposition(
         console.log(
           `\n⚙️  Generating value extension point "${ext.name}" contributions:`,
         );
-        const entryWriters: WriterFunction[] = ext.contributions.map(({ item }) => {
-          console.log(`   → value item [inline data]`);
-          return (writer) => writer.write(JSON.stringify(item, null, 2));
-        });
+        const entryWriters: WriterFunction[] = ext.contributions.map(
+          ({ item }) => {
+            console.log(`   → value item [inline data]`);
+            return (writer) => writer.write(JSON.stringify(item, null, 2));
+          },
+        );
         src.addVariableStatement({
           isExported: true,
           declarationKind: VariableDeclarationKind.Const,
-          declarations: [{
-            name: ext.varName,
-            initializer: writeObjectArray(entryWriters),
-          }],
+          declarations: [
+            {
+              name: ext.varName,
+              initializer: writeObjectArray(entryWriters),
+            },
+          ],
         });
       } else {
         console.log(
@@ -299,7 +323,9 @@ export function emitComposition(
   const providerWriters = collectedExtPoints
     .filter(
       (ext): ext is ComponentExtPoint | LazyComponentExtPoint | ValueExtPoint =>
-        ext.kind === 'component' || ext.kind === 'lazy-component' || ext.kind === 'value',
+        ext.kind === 'component' ||
+        ext.kind === 'lazy-component' ||
+        ext.kind === 'value',
     )
     .map((ext) =>
       Writers.object({
@@ -327,14 +353,32 @@ export function emitComposition(
       }),
     );
 
+  // Initializer providers use provideAppInitializer(fn) — the function runs in an
+  // injection context so contributors can call inject() inside for dependencies.
+  // Each contributor becomes a separate provideAppInitializer() call.
+  const initializerProviderWriters: WriterFunction[] = collectedExtPoints
+    .filter((ext): ext is InitializerExtPoint => ext.kind === 'initializer')
+    .flatMap((ext) =>
+      ext.contributions.map(({ item }) => {
+        console.log(
+          `   → initializer "${ext.name}": ${item.exportName} [provideAppInitializer]`,
+        );
+        return (writer: import('ts-morph').CodeBlockWriter) =>
+          writer.write(`provideAppInitializer(${item.exportName})`);
+      }),
+    );
+
   src.addVariableStatement({
     isExported: true,
     declarationKind: VariableDeclarationKind.Const,
     declarations: [
       {
         name: 'generatedProviders',
-        type: 'Provider[]',
+        type: hasInitializers
+          ? '(Provider | EnvironmentProviders)[]'
+          : 'Provider[]',
         initializer: writeObjectArray([
+          ...initializerProviderWriters,
           ...providerWriters,
           ...lifecycleProviderWriters,
         ]),
