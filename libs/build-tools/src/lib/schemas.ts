@@ -62,7 +62,7 @@ export const InitializerItemSchema = z.object({
 export type InitializerItem = z.infer<typeof InitializerItemSchema>;
 
 // A single item contributed to a value extension point. Data is arbitrary per extension point.
-export const ValueItemSchema = z.object({}).passthrough();
+export const ValueItemSchema = z.looseObject({});
 export type ValueItem = z.infer<typeof ValueItemSchema>;
 
 // Extension item is either a route contribution (has `path`), a component contribution,

@@ -19,9 +19,7 @@ export function buildNacsSchemaJson(root: string): string {
   const discoveredExtensionPoints: Record<string, string> = {};
 
   pkgFiles.forEach((file) => {
-    const pkg = JSON.parse(
-      fs.readFileSync(path.join(root, file), 'utf-8'),
-    ) as {
+    const pkg = JSON.parse(fs.readFileSync(path.join(root, file), 'utf-8')) as {
       name?: string;
       'nacs-contributions'?: { extensionPoints?: Record<string, unknown> };
     };
@@ -46,7 +44,7 @@ export function buildNacsSchemaJson(root: string): string {
             .optional();
           return acc;
         },
-        {} as Record<string, z.ZodTypeAny>,
+        {} as Record<string, z.ZodType>,
       ),
     )
     .catchall(z.array(ExtensionItemSchema).optional());

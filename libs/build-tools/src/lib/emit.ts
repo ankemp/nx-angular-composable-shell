@@ -1,5 +1,6 @@
 import * as fs from 'fs';
 import {
+  CodeBlockWriter,
   Project,
   VariableDeclarationKind,
   WriterFunction,
@@ -53,9 +54,7 @@ export function emitComposition(
   defaultRoute?: string,
 ): void {
   const project = new Project({ useInMemoryFileSystem: true });
-  const src = project.createSourceFile('composition.ts', '', {
-    overwrite: true,
-  });
+  const src = project.createSourceFile('composition.ts', '');
 
   // Framework imports
   src.addImportDeclaration({
@@ -65,29 +64,26 @@ export function emitComposition(
   const hasInitializers = collectedExtPoints.some(
     (ext) => ext.kind === 'initializer' && ext.contributions.length > 0,
   );
-  src.addImportDeclaration({
+  const coreImport = src.addImportDeclaration({
     moduleSpecifier: '@angular/core',
-    namedImports: [
-      { name: 'Provider', isTypeOnly: true },
-      ...(hasInitializers
-        ? [
-            { name: 'EnvironmentProviders', isTypeOnly: true },
-            { name: 'provideAppInitializer' },
-          ]
-        : []),
-    ],
+    namedImports: [{ name: 'Provider', isTypeOnly: true }],
   });
+  if (hasInitializers) {
+    coreImport.addNamedImports([
+      { name: 'EnvironmentProviders', isTypeOnly: true },
+      { name: 'provideAppInitializer' },
+    ]);
+  }
 
   // Extension point imports — emitted in declaration order; no string.replace needed
   for (const ext of collectedExtPoints) {
     if (ext.kind === 'component') {
       src.addImportDeclaration({
         moduleSpecifier: ext.consumerImportPath,
-        namedImports: [{ name: ext.descriptor.itemTypeName, isTypeOnly: true }],
-      });
-      src.addImportDeclaration({
-        moduleSpecifier: ext.consumerImportPath,
-        namedImports: [ext.descriptor.tokenExportName],
+        namedImports: [
+          { name: ext.descriptor.itemTypeName, isTypeOnly: true },
+          ext.descriptor.tokenExportName,
+        ],
       });
       for (const { item, importPath } of ext.contributions) {
         src.addImportDeclaration({
@@ -261,17 +257,7 @@ export function emitComposition(
           declarations: [
             {
               name: ext.varName,
-              initializer: (writer) => {
-                writer.write('[');
-                writer.newLine();
-                objectWriters.forEach((objWriter, i) => {
-                  writer.write('  ');
-                  objWriter(writer);
-                  if (i < objectWriters.length - 1) writer.write(',');
-                  writer.newLine();
-                });
-                writer.write(']');
-              },
+              initializer: writeObjectArray(objectWriters),
             },
           ],
         });
@@ -363,7 +349,7 @@ export function emitComposition(
         console.log(
           `   → initializer "${ext.name}": ${item.exportName} [provideAppInitializer]`,
         );
-        return (writer: import('ts-morph').CodeBlockWriter) =>
+        return (writer: CodeBlockWriter) =>
           writer.write(`provideAppInitializer(${item.exportName})`);
       }),
     );
