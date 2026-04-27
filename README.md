@@ -478,22 +478,24 @@ When a feature is removed from a client config, its initializer disappears autom
 
 ## Platform Governance
 
-To ensure each client build is a hermetically sealed artifact, the pre-build engine enforces strict governance. When a feature is loaded from the registry by version, the script enforces that the feature's `peerDependencies` are satisfied by the shell's installed dependencies.
+To ensure each client build is a **hermetically sealed** artifact, the pre-build engine enforces strict dependency governance on every feature — catching incompatibilities at build time, long before a bad artifact reaches your deployment pipeline.
 
-This prevents "Module Federation version mismatch" errors by catching framework or library version mismatches (e.g. an Angular 18 feature in an Angular 21 shell) before a bad build ever reaches your deployment pipeline.
+When `prepare-build` resolves a feature's `package.json`, it iterates over **all** `peerDependencies` declared by that feature and verifies each one is satisfied by the shell's installed dependencies. This applies universally — both versioned registry packages and local workspace features are checked. (In practice, local features naturally satisfy their peers because they share the workspace's `node_modules`, but the check remains as a safety net.)
 
-The enforced peers are: `@angular/core`, `@angular/common`, `@angular/router`, `rxjs`.
-
-If a violation is detected, the build fails immediately with a clear message:
+This semantic governance loop prevents framework or library version mismatches (e.g. an Angular 18 feature composed into an Angular 21 shell) from silently producing a broken build. The build fails immediately with a typed `NacsGovernanceError` and an actionable message:
 
 ```
-❌ STRICT GOVERNANCE FAILURE: Version mismatch in @nacs/feature-a@1.0.0
-The shell's core dependencies do not satisfy the feature's peer requirements:
+❌ NACS GOVERNANCE FAILURE: Version mismatch in @nacs/feature-a@1.0.0
+The shell's dependencies do not satisfy the feature's peer requirements:
   - @angular/core: Feature requires '>=18 <19', Shell provides '~21.2.0'
-Resolution: Update the client config to a newer feature version, or recompile the feature.
+Resolution: Update the client config to a newer feature version, or align the feature's dependencies.
 ```
 
-Local workspace features (no `version` field) are not checked — they share the workspace's `node_modules` directly and are always in sync.
+If a peer dependency is missing entirely from the shell, the error surfaces that too:
+
+```
+  - some-dep: Feature requires '^3.0.0', but Shell does not provide it.
+```
 
 ---
 
