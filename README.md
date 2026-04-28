@@ -26,7 +26,7 @@ This repo is paired with a LinkedIn article series. The five-part series will be
 2. [NACS Part 2: One Config File. One Client. Zero Leaked Features](https://www.linkedin.com/pulse/nacs-part-2-one-config-file-client-zero-leaked-features-andrew-kemp-qmfec)
 3. [NACS Part 3: A Platform Nobody Uses Is Just a Tax](https://www.linkedin.com/pulse/nacs-part-3-platform-nobody-uses-just-tax-andrew-kemp-w4sjc/)
 4. [NACS Part 4: The Shell That Doesn't Know What It Contains](https://www.linkedin.com/pulse/nacs-part-4-shell-doesnt-know-what-contains-andrew-kemp-g7g3c/)
-5. NACS Part 5: You Aren't Building a Tool. You're Building a Platform
+5. [NACS Part 5: You Aren't Building a Tool. You're Building a Platform](https://www.linkedin.com/pulse/nacs-part-5-you-arent-building-tool-youre-platform-andrew-kemp-c3xac/)
 
 ## How It Works
 
